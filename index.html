@@ -1668,6 +1668,7 @@ function updateWireframeColor() {
 }
 
 initWireframe();
+updateWireframeColor();
 
 // ═══════════════════════════════════════════════
 // I18N — LANGUAGE SYSTEM
@@ -1846,13 +1847,9 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
   btn.addEventListener('click', () => setLang(btn.dataset.lang));
 });
 
-// Default: Polish, unless browser is English or URL has ?lang=en
+// Default: always Polish. Only switch to EN via explicit ?lang=en in URL
 const urlLang = new URLSearchParams(window.location.search).get('lang');
-if (urlLang === 'en' || (!urlLang && navigator.language && navigator.language.startsWith('en'))) {
-  setLang('en');
-} else {
-  setLang('pl');
-}
+setLang(urlLang === 'en' ? 'en' : 'pl');
 
 // ═══════════════════════════════════════════════
 // PROJECT DATA & RENDERING
