@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl" data-theme="wb">
+<html lang="pl" data-theme="bw">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -79,25 +79,7 @@
   --noise-opacity: 0.02;
   --marquee-stroke: var(--border);
 }
-/* White/Black — clean, high-contrast default (like mobilemonitoring.pl) */
-[data-theme="wb"] {
-  --bg: #FFFFFF;
-  --bg-surface: #F7F7F7;
-  --fg: #1A1A1A;
-  --fg-dim: #4A4A4A;
-  --fg-muted: #8A8A8A;
-  --accent: #000000;
-  --accent-dim: rgba(0,0,0,0.04);
-  --border: #E0E0E0;
-  --border-light: #D0D0D0;
-  --wireframe-color: 0x000000;
-  --scan-opacity: 0.03;
-  --header-bg: rgba(255,255,255,0.95);
-  --noise-opacity: 0;
-  --marquee-stroke: #D0D0D0;
-}
-
-/* Pure B&W — stark, maximum contrast */
+/* Pure B&W — default entry mode, stark, maximum contrast */
 [data-theme="bw"] {
   --bg: #FFFFFF;
   --bg-surface: #F5F5F5;
@@ -277,17 +259,10 @@ body::after {
 }
 .theme-btn:hover { border-color:var(--fg-dim); transform:scale(1.15); }
 .theme-btn.active { border-color:var(--accent); border-width:2px; }
-/* White/Black mode button: white circle with thin border */
-.theme-btn--wb { background:#FFFFFF; border-color:#D0D0D0; }
 /* Dark mode button: filled blueprint blue circle */
 .theme-btn--dark { background:#00293F; }
-/* B&W mode button: half black half white with diagonal line */
+/* B&W mode button: clean half black half white */
 .theme-btn--bw { background:linear-gradient(135deg, #FFFFFF 50%, #000000 50%); }
-.theme-btn--bw::after {
-  content:''; position:absolute; top:-1px; left:50%; width:1px; height:calc(100% + 2px);
-  background:var(--border-light); transform:rotate(45deg); transform-origin:top center;
-}
-[data-theme="wb"] .theme-btn--wb { border-color:#000000; border-width:2px; }
 [data-theme="dark"] .theme-btn--dark { border-color:var(--accent); border-width:2px; }
 [data-theme="bw"] .theme-btn--bw { border-color:#000000; border-width:2px; }
 
@@ -832,7 +807,6 @@ body::after {
 .protractor-bg .protractor-tick { stroke:var(--fg-muted); stroke-width:0.3; transition:stroke 0.5s; }
 .protractor-bg .protractor-tick-major { stroke:var(--fg-dim); stroke-width:0.6; transition:stroke 0.5s; }
 .protractor-bg .protractor-label { fill:var(--fg-muted); font-family:'Space Mono',monospace; font-size:5px; text-anchor:middle; transition:fill 0.5s; }
-[data-theme="wb"] .protractor-bg { opacity:0.05; }
 [data-theme="dark"] .protractor-bg { opacity:0.08; }
 [data-theme="bw"] .protractor-bg { opacity:0.04; }
 @keyframes protractorSpin { from { transform:translate(-50%,-50%) rotate(0deg); } to { transform:translate(-50%,-50%) rotate(360deg); } }
@@ -924,9 +898,8 @@ body::after {
     <a href="#about" class="nav-link" data-page="about" data-i18n="nav.about">About</a>
     <a href="#contact" class="nav-link" data-page="contact" data-i18n="nav.contact">Contact</a>
     <div class="theme-switcher">
-      <button class="theme-btn theme-btn--wb" data-set-theme="wb" aria-label="White/Black mode" title="Clean"></button>
-      <button class="theme-btn theme-btn--dark" data-set-theme="dark" aria-label="Dark mode" title="Blueprint"></button>
       <button class="theme-btn theme-btn--bw" data-set-theme="bw" aria-label="B&W mode" title="B&W"></button>
+      <button class="theme-btn theme-btn--dark" data-set-theme="dark" aria-label="Blueprint mode" title="Blueprint"></button>
     </div>
     <div class="lang-switch">
       <button class="lang-btn active" data-lang="en">EN</button>
