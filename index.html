@@ -1944,50 +1944,94 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 })();
 
 // ═══════════════════════════════════════════════
-// /// HOVER SCRAMBLE ANIMATION
+// /// SCRAMBLE ANIMATION (everywhere)
 // ═══════════════════════════════════════════════
 (function() {
-  function scrambleSlashes(el) {
-    const spans = el.querySelectorAll('.slash-scramble');
-    spans.forEach(span => {
-      if (span._scrambling) return;
-      span._scrambling = true;
-      const final = '///';
-      const dur = 400;
-      const start = performance.now();
-      (function tick() {
-        const p = Math.min((performance.now() - start) / dur, 1);
-        let out = '';
-        for (let i = 0; i < final.length; i++) {
-          if (p >= 0.3 + (i / final.length) * 0.5) out += final[i];
-          else out += SCRAMBLE_CHARS[(Math.random() * SCRAMBLE_CHARS.length) | 0];
-        }
-        span.textContent = out;
-        if (p < 1) requestAnimationFrame(tick);
-        else span._scrambling = false;
-      })();
-    });
+  function scrambleSpan(span) {
+    if (span._scrambling) return;
+    span._scrambling = true;
+    const final = span._original || '///';
+    const dur = 400;
+    const start = performance.now();
+    (function tick() {
+      const p = Math.min((performance.now() - start) / dur, 1);
+      let out = '';
+      for (let i = 0; i < final.length; i++) {
+        if (p >= 0.3 + (i / final.length) * 0.5) out += final[i];
+        else out += SCRAMBLE_CHARS[(Math.random() * SCRAMBLE_CHARS.length) | 0];
+      }
+      span.textContent = out;
+      if (p < 1) requestAnimationFrame(tick);
+      else span._scrambling = false;
+    })();
+  }
+
+  function scrambleAll(el) {
+    el.querySelectorAll('.slash-scramble').forEach(scrambleSpan);
   }
 
   function wrapSlashes(el) {
-    const html = el.innerHTML;
-    el.innerHTML = html.replace(/(\/\/\/)/g, '<span class="slash-scramble">$1</span>');
+    el.innerHTML = el.innerHTML.replace(/(\/\/\/)/g, '<span class="slash-scramble">$1</span>');
+    el.querySelectorAll('.slash-scramble').forEach(s => { s._original = s.textContent; });
   }
 
-  // Service cards: hover whole card → scramble /// in sc-dept
-  document.querySelectorAll('.service-card').forEach(card => {
-    const dept = card.querySelector('.sc-dept');
-    if (!dept) return;
-    wrapSlashes(dept);
-    card.addEventListener('mouseenter', () => scrambleSlashes(dept));
+  // Skip tickers/marquees — only target static text elements
+  const skipSelectors = '.marquee-inner, .ticker-track, pre, code';
+
+  // Wrap all /// across the page (except tickers & marquees)
+  const allTextEls = document.querySelectorAll(
+    '.hero-sub, .sc-dept, .cta-sub, ' +
+    '.about-label, .about-title, .cap-header, .form-sub, ' +
+    '.ci-label, .status-sub, .pd-id, .pd-section-label, ' +
+    '.fb-est, .footer-col h4, .footer-legal span'
+  );
+  allTextEls.forEach(el => {
+    if (el.closest(skipSelectors)) return;
+    if (el.innerHTML.includes('///')) wrapSlashes(el);
   });
 
-  // Footer columns: hover column → scramble /// in h4
+  // Hover: service cards → scramble in whole card
+  document.querySelectorAll('.service-card').forEach(card => {
+    card.addEventListener('mouseenter', () => scrambleAll(card));
+  });
+
+  // Hover: footer columns
   document.querySelectorAll('.footer-col').forEach(col => {
-    const h4 = col.querySelector('h4');
-    if (!h4) return;
-    wrapSlashes(h4);
-    col.addEventListener('mouseenter', () => scrambleSlashes(h4));
+    col.addEventListener('mouseenter', () => scrambleAll(col));
+  });
+
+  // Hover: contact info cards
+  document.querySelectorAll('.ci-card').forEach(card => {
+    card.addEventListener('mouseenter', () => scrambleAll(card));
+  });
+
+  // Hover: project detail section labels
+  document.querySelectorAll('.pd-section-label').forEach(el => {
+    el.addEventListener('mouseenter', () => scrambleAll(el));
+  });
+
+  // Hover: about section labels
+  document.querySelectorAll('.about-label, .about-title, .cap-header').forEach(el => {
+    const parent = el.closest('.about-text, .cap-card') || el;
+    parent.addEventListener('mouseenter', () => scrambleAll(parent));
+  });
+
+  // Hover: CTA sub, form sub, status
+  document.querySelectorAll('.cta-sub, .form-sub, .status-sub, .fb-est, .pd-id').forEach(el => {
+    el.addEventListener('mouseenter', () => scrambleAll(el));
+  });
+
+  // Scroll reveal: scramble /// when elements enter viewport
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        scrambleAll(e.target);
+        revealObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.3 });
+  allTextEls.forEach(el => {
+    if (el.querySelector('.slash-scramble')) revealObs.observe(el);
   });
 })();
 
