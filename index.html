@@ -795,24 +795,49 @@ body::after {
   .footer-badge { padding:18px; }
 }
 
-/* ─── PROTRACTOR BACKGROUND ─── */
-.protractor-bg {
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:min(600px, 90vw); height:min(600px, 90vw);
-  pointer-events:none; z-index:0;
-  animation:protractorSpin 180s linear infinite;
+/* ─── PROTRACTOR BETWEEN SECTIONS ─── */
+.protractor-section {
+  position:relative; overflow:hidden; height:0; /* zero height — protractor overflows into adjacent sections */
+  pointer-events:none; z-index:1;
 }
-.protractor-bg svg { width:100%; height:100%; }
+.protractor-bg {
+  position:absolute; top:50%; right:-25%;
+  width:min(900px, 110vw); height:min(900px, 110vw);
+  transform:translate(0, -50%);
+  pointer-events:none;
+}
+.protractor-bg svg { width:100%; height:100%; overflow:visible; }
 .protractor-bg .protractor-arc { stroke:var(--fg-muted); fill:none; stroke-width:0.5; transition:stroke 0.5s; }
 .protractor-bg .protractor-tick { stroke:var(--fg-muted); stroke-width:0.3; transition:stroke 0.5s; }
 .protractor-bg .protractor-tick-major { stroke:var(--fg-dim); stroke-width:0.6; transition:stroke 0.5s; }
 .protractor-bg .protractor-label { fill:var(--fg-muted); font-family:'Space Mono',monospace; font-size:5px; text-anchor:middle; transition:fill 0.5s; }
-[data-theme="dark"] .protractor-bg { opacity:0.08; }
-[data-theme="bw"] .protractor-bg { opacity:0.04; }
-@keyframes protractorSpin { from { transform:translate(-50%,-50%) rotate(0deg); } to { transform:translate(-50%,-50%) rotate(360deg); } }
+[data-theme="dark"] .protractor-bg { opacity:0.10; }
+[data-theme="bw"] .protractor-bg { opacity:0.06; }
 @media (max-width:900px) {
-  .protractor-bg { width:min(400px, 80vw); height:min(400px, 80vw); }
+  .protractor-bg { right:-40%; width:min(500px, 120vw); height:min(500px, 120vw); }
 }
+
+/* ─── /// HOVER RULER ANIMATION ─── */
+.slash-ruler {
+  display:inline-block; position:relative; overflow:hidden;
+}
+.slash-ruler::after {
+  content:''; position:absolute; left:0; top:50%; height:1px; width:100%;
+  background:var(--fg-muted); transform:scaleX(0); transform-origin:center;
+  transition:transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.slash-ruler .slash-ticks {
+  position:absolute; inset:0; opacity:0;
+  transition:opacity 0.3s ease 0.1s;
+  background:repeating-linear-gradient(90deg, transparent, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 3.5px);
+  background-size:100% 6px; background-position:center;
+  background-repeat:no-repeat;
+}
+/* Trigger states — applied by JS on parent hover */
+.slash-ruler.active .slash-text { opacity:0; transition:opacity 0.15s; }
+.slash-ruler.active::after { transform:scaleX(1); }
+.slash-ruler.active .slash-ticks { opacity:0.5; }
+.slash-text { transition:opacity 0.2s; position:relative; z-index:1; }
 
 /* ─── COOKIE CONSENT BANNER ─── */
 .cookie-banner {
@@ -994,6 +1019,58 @@ body::after {
       </svg>
     </div>
 
+    <!-- PROTRACTOR — half-circle from right, scroll-accelerated rotation -->
+    <div class="protractor-section">
+      <div class="protractor-bg" id="protractorEl">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <circle class="protractor-arc" cx="100" cy="100" r="90"/>
+          <circle class="protractor-arc" cx="100" cy="100" r="85" stroke-dasharray="2 4"/>
+          <circle class="protractor-arc" cx="100" cy="100" r="60" stroke-dasharray="1 6" stroke-width="0.3"/>
+          <!-- Labels -->
+          <text class="protractor-label" x="100" y="7">0</text>
+          <text class="protractor-label" x="193" y="103">90</text>
+          <text class="protractor-label" x="100" y="198">180</text>
+          <text class="protractor-label" x="7" y="103">270</text>
+          <text class="protractor-label" x="163" y="30">45</text>
+          <text class="protractor-label" x="163" y="175">135</text>
+          <text class="protractor-label" x="37" y="175">225</text>
+          <text class="protractor-label" x="37" y="30">315</text>
+          <!-- Cardinal ticks -->
+          <line class="protractor-tick-major" x1="100" y1="10" x2="100" y2="22"/>
+          <line class="protractor-tick-major" x1="100" y1="178" x2="100" y2="190"/>
+          <line class="protractor-tick-major" x1="10" y1="100" x2="22" y2="100"/>
+          <line class="protractor-tick-major" x1="178" y1="100" x2="190" y2="100"/>
+          <!-- 30-degree ticks -->
+          <line class="protractor-tick-major" x1="145" y1="22.0" x2="141.5" y2="28.1"/>
+          <line class="protractor-tick-major" x1="178" y1="55.0" x2="171.9" y2="58.5"/>
+          <line class="protractor-tick-major" x1="178" y1="145" x2="171.9" y2="141.5"/>
+          <line class="protractor-tick-major" x1="145" y1="178" x2="141.5" y2="171.9"/>
+          <line class="protractor-tick-major" x1="55" y1="178" x2="58.5" y2="171.9"/>
+          <line class="protractor-tick-major" x1="22" y1="145" x2="28.1" y2="141.5"/>
+          <line class="protractor-tick-major" x1="22" y1="55" x2="28.1" y2="58.5"/>
+          <line class="protractor-tick-major" x1="55" y1="22" x2="58.5" y2="28.1"/>
+          <!-- 45-degree ticks -->
+          <line class="protractor-tick-major" x1="163.6" y1="36.4" x2="157.3" y2="42.7"/>
+          <line class="protractor-tick-major" x1="163.6" y1="163.6" x2="157.3" y2="157.3"/>
+          <line class="protractor-tick-major" x1="36.4" y1="163.6" x2="42.7" y2="157.3"/>
+          <line class="protractor-tick-major" x1="36.4" y1="36.4" x2="42.7" y2="42.7"/>
+          <!-- 15-degree minor ticks -->
+          <line class="protractor-tick" x1="123.3" y1="13.4" x2="121" y2="20.2"/>
+          <line class="protractor-tick" x1="186.6" y1="76.7" x2="179.8" y2="79"/>
+          <line class="protractor-tick" x1="186.6" y1="123.3" x2="179.8" y2="121"/>
+          <line class="protractor-tick" x1="123.3" y1="186.6" x2="121" y2="179.8"/>
+          <line class="protractor-tick" x1="76.7" y1="186.6" x2="79" y2="179.8"/>
+          <line class="protractor-tick" x1="13.4" y1="123.3" x2="20.2" y2="121"/>
+          <line class="protractor-tick" x1="13.4" y1="76.7" x2="20.2" y2="79"/>
+          <line class="protractor-tick" x1="76.7" y1="13.4" x2="79" y2="20.2"/>
+          <!-- Crosshair center -->
+          <line class="protractor-tick" x1="95" y1="100" x2="105" y2="100"/>
+          <line class="protractor-tick" x1="100" y1="95" x2="100" y2="105"/>
+          <circle class="protractor-arc" cx="100" cy="100" r="3" stroke-width="0.4"/>
+        </svg>
+      </div>
+    </div>
+
     <div class="featured-section">
       <div class="section-header"><span class="sh-id">[02]</span><span data-i18n="home.featured">Featured Projects</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
       <div class="projects-grid" id="homeProjects"></div>
@@ -1047,48 +1124,7 @@ body::after {
 </div>
 
 <!-- ─── ABOUT ─── -->
-<div class="page" id="page-about" data-title="instant-engineering" data-section="ABOUT" data-sheet="4/5" style="position:relative;overflow:hidden;">
-  <!-- Protractor background — slowly rotating engineering element -->
-  <div class="protractor-bg">
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer arc -->
-      <circle class="protractor-arc" cx="100" cy="100" r="90"/>
-      <circle class="protractor-arc" cx="100" cy="100" r="85" stroke-dasharray="2 4"/>
-      <!-- Degree ticks — every 10 degrees -->
-      <g id="protractor-ticks"></g>
-      <!-- Labels at key angles -->
-      <text class="protractor-label" x="100" y="7">0</text>
-      <text class="protractor-label" x="193" y="103">90</text>
-      <text class="protractor-label" x="100" y="198">180</text>
-      <text class="protractor-label" x="7" y="103">270</text>
-      <text class="protractor-label" x="163" y="30">45</text>
-      <text class="protractor-label" x="163" y="175">135</text>
-      <text class="protractor-label" x="37" y="175">225</text>
-      <text class="protractor-label" x="37" y="30">315</text>
-      <!-- Minor ticks generated inline -->
-      <line class="protractor-tick" x1="100" y1="10" x2="100" y2="18"/>
-      <line class="protractor-tick" x1="100" y1="182" x2="100" y2="190"/>
-      <line class="protractor-tick" x1="10" y1="100" x2="18" y2="100"/>
-      <line class="protractor-tick" x1="182" y1="100" x2="190" y2="100"/>
-      <!-- 30-degree ticks -->
-      <line class="protractor-tick-major" x1="145" y1="22.0" x2="141.5" y2="28.1"/>
-      <line class="protractor-tick-major" x1="178" y1="55.0" x2="171.9" y2="58.5"/>
-      <line class="protractor-tick-major" x1="178" y1="145" x2="171.9" y2="141.5"/>
-      <line class="protractor-tick-major" x1="145" y1="178" x2="141.5" y2="171.9"/>
-      <line class="protractor-tick-major" x1="55" y1="178" x2="58.5" y2="171.9"/>
-      <line class="protractor-tick-major" x1="22" y1="145" x2="28.1" y2="141.5"/>
-      <line class="protractor-tick-major" x1="22" y1="55" x2="28.1" y2="58.5"/>
-      <line class="protractor-tick-major" x1="55" y1="22" x2="58.5" y2="28.1"/>
-      <!-- 45-degree ticks -->
-      <line class="protractor-tick-major" x1="163.6" y1="36.4" x2="157.3" y2="42.7"/>
-      <line class="protractor-tick-major" x1="163.6" y1="163.6" x2="157.3" y2="157.3"/>
-      <line class="protractor-tick-major" x1="36.4" y1="163.6" x2="42.7" y2="157.3"/>
-      <line class="protractor-tick-major" x1="36.4" y1="36.4" x2="42.7" y2="42.7"/>
-      <!-- Crosshair center -->
-      <line class="protractor-tick" x1="96" y1="100" x2="104" y2="100"/>
-      <line class="protractor-tick" x1="100" y1="96" x2="100" y2="104"/>
-    </svg>
-  </div>
+<div class="page" id="page-about" data-title="instant-engineering" data-section="ABOUT" data-sheet="4/5">
   <div class="container">
     <div class="section-header"><span class="sh-id">[DOSSIER]</span><span data-i18n="nav.about">About</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
     <div class="about-grid">
@@ -1899,6 +1935,67 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     renderProjects(document.getElementById('portfolioGrid'), filtered);
   });
 });
+
+// ═══════════════════════════════════════════════
+// PROTRACTOR — SCROLL-LINKED ROTATION
+// ═══════════════════════════════════════════════
+(function() {
+  const el = document.getElementById('protractorEl');
+  if (!el) return;
+  let angle = 0;
+  let lastScroll = window.scrollY;
+  let velocity = 0;
+
+  window.addEventListener('scroll', () => {
+    const delta = Math.abs(window.scrollY - lastScroll);
+    velocity = Math.min(delta * 0.5, 8); // cap speed
+    lastScroll = window.scrollY;
+  }, { passive:true });
+
+  function tick() {
+    // Base rotation + scroll boost
+    angle += 0.05 + velocity;
+    velocity *= 0.92; // decay
+    el.querySelector('svg').style.transform = 'rotate(' + angle + 'deg)';
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// ═══════════════════════════════════════════════
+// /// HOVER RULER ANIMATION
+// ═══════════════════════════════════════════════
+(function() {
+  // Service cards: hover whole card → animate /// in sc-dept
+  document.querySelectorAll('.service-card').forEach(card => {
+    const dept = card.querySelector('.sc-dept');
+    if (!dept) return;
+    wrapSlashes(dept);
+    card.addEventListener('mouseenter', () => activateSlashes(dept));
+    card.addEventListener('mouseleave', () => deactivateSlashes(dept));
+  });
+
+  // Footer columns: hover column → animate /// in h4
+  document.querySelectorAll('.footer-col').forEach(col => {
+    const h4 = col.querySelector('h4');
+    if (!h4) return;
+    wrapSlashes(h4);
+    col.addEventListener('mouseenter', () => activateSlashes(h4));
+    col.addEventListener('mouseleave', () => deactivateSlashes(h4));
+  });
+
+  function wrapSlashes(el) {
+    const html = el.innerHTML;
+    el.innerHTML = html.replace(/(\/\/\/)/g,
+      '<span class="slash-ruler"><span class="slash-text">$1</span><span class="slash-ticks"></span></span>');
+  }
+  function activateSlashes(el) {
+    el.querySelectorAll('.slash-ruler').forEach(s => s.classList.add('active'));
+  }
+  function deactivateSlashes(el) {
+    el.querySelectorAll('.slash-ruler').forEach(s => s.classList.remove('active'));
+  }
+})();
 
 // ═══════════════════════════════════════════════
 // COOKIE CONSENT
