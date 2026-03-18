@@ -21,6 +21,38 @@
 <meta name="twitter:title" content="Instant-Engineering — Inżynieria Produktu">
 <meta name="twitter:description" content="CAD, druk 3D, prototypowanie, IoT. Opole, Polska.">
 <title>Instant-Engineering /// CAD — 3D PRINTING — PROTOTYPING</title>
+<!-- Favicon — 3 chevron segments -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<!-- Structured Data — LocalBusiness + ProfessionalService -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "ProfessionalService"],
+  "name": "Instant-Engineering",
+  "alternateName": "Instant-Engineering — Maciej Szela",
+  "url": "https://instant-engineering.com",
+  "email": "maciej@instant-engineering.com",
+  "description": "Inżynieria produktu — CAD, druk 3D, prototypowanie, IoT. Od koncepcji po fizyczny prototyp.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Opole",
+    "addressCountry": "PL"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 50.6751,
+    "longitude": 17.9213
+  },
+  "areaServed": ["PL", "EU"],
+  "knowsLanguage": ["pl", "en"],
+  "priceRange": "$$",
+  "serviceType": ["CAD Modeling", "Product Design", "3D Printing", "Rapid Prototyping", "IoT Development", "Hardware Consulting"],
+  "sameAs": [
+    "https://instagram.com/instant_engineering",
+    "https://github.com/instantengineering"
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -787,6 +819,44 @@ body::after {
   .fb-brand { font-size:20px; }
   .footer-badge { padding:18px; }
 }
+
+/* ─── COOKIE CONSENT BANNER ─── */
+.cookie-banner {
+  position:fixed; bottom:0; left:0; right:0; z-index:10000;
+  background:var(--bg); border-top:1px solid var(--border);
+  padding:20px 32px; display:none; gap:16px;
+  align-items:center; justify-content:space-between;
+  font-family:'Space Mono',monospace; font-size:13px;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.1);
+  transition:background 0.5s, border-color 0.5s;
+}
+.cookie-banner.show { display:flex; }
+.cookie-banner-text { flex:1; color:var(--fg); line-height:1.5; }
+.cookie-banner-text a { color:var(--fg-dim); text-decoration:underline; }
+.cookie-banner-actions { display:flex; gap:12px; flex-shrink:0; }
+.cookie-btn {
+  font-family:inherit; font-size:12px; letter-spacing:2px; text-transform:uppercase;
+  padding:10px 20px; cursor:pointer; transition:all 0.3s; border:1px solid var(--border);
+}
+.cookie-btn--accept { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+.cookie-btn--accept:hover { background:transparent; color:var(--accent); }
+.cookie-btn--reject { background:transparent; color:var(--fg); }
+.cookie-btn--reject:hover { border-color:var(--accent); color:var(--accent); }
+@media (max-width:600px) {
+  .cookie-banner { flex-direction:column; padding:16px; gap:12px; }
+  .cookie-banner-text { font-size:12px; }
+  .cookie-banner-actions { width:100%; }
+  .cookie-btn { flex:1; text-align:center; padding:10px 12px; }
+}
+
+/* ─── FORM STATUS MESSAGES ─── */
+.form-status {
+  padding:12px 16px; margin-top:16px; font-size:13px; letter-spacing:1px;
+  text-transform:uppercase; display:none;
+}
+.form-status--success { display:block; border:1px solid var(--accent); color:var(--accent); }
+.form-status--error { display:block; border:1px solid #e74c3c; color:#e74c3c; }
+.form-status--sending { display:block; border:1px solid var(--fg-muted); color:var(--fg-muted); }
 </style>
 </head>
 <body>
@@ -1013,14 +1083,18 @@ body::after {
       <div class="contact-form reveal">
         <div class="form-heading" data-i18n="contact.formTitle">Send a Brief</div>
         <div class="form-sub" data-i18n="contact.formSub">Describe your project. Receive a quote within 48h. ///</div>
-        <form onsubmit="event.preventDefault()">
+        <!-- TODO: Replace Formspree ID — create form at formspree.io, set endpoint to maciej@instant-engineering.com -->
+        <form id="contactForm" action="https://formspree.io/f/mvgogvwz" method="POST">
+          <input type="hidden" name="_subject" value="New Brief — instant-engineering.com">
+          <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-            <div class="form-group"><label class="form-label" data-i18n="contact.name">Name</label><input class="form-input" type="text" data-i18n-placeholder="contact.namePh"></div>
-            <div class="form-group"><label class="form-label" data-i18n="contact.email">Email</label><input class="form-input" type="email" placeholder="your@email.com"></div>
+            <div class="form-group"><label class="form-label" data-i18n="contact.name">Name</label><input class="form-input" type="text" name="name" required data-i18n-placeholder="contact.namePh"></div>
+            <div class="form-group"><label class="form-label" data-i18n="contact.email">Email</label><input class="form-input" type="email" name="email" required placeholder="your@email.com"></div>
           </div>
-          <div class="form-group"><label class="form-label" data-i18n="contact.type">Project Type</label><select class="form-select"><option data-i18n="contact.opt1">CAD & Product Design</option><option data-i18n="contact.opt2">3D Printing & Prototyping</option><option data-i18n="contact.opt3">IoT & Hardware</option><option data-i18n="contact.opt4">Multiple / Not Sure</option></select></div>
-          <div class="form-group"><label class="form-label" data-i18n="contact.brief">Brief Description</label><textarea class="form-textarea" data-i18n-placeholder="contact.briefPh"></textarea></div>
+          <div class="form-group"><label class="form-label" data-i18n="contact.type">Project Type</label><select class="form-select" name="project_type"><option data-i18n="contact.opt1">CAD & Product Design</option><option data-i18n="contact.opt2">3D Printing & Prototyping</option><option data-i18n="contact.opt3">IoT & Hardware</option><option data-i18n="contact.opt4">Multiple / Not Sure</option></select></div>
+          <div class="form-group"><label class="form-label" data-i18n="contact.brief">Brief Description</label><textarea class="form-textarea" name="message" required data-i18n-placeholder="contact.briefPh"></textarea></div>
           <button type="submit" class="form-submit" data-i18n="contact.send">Send Brief &nbsp;>>></button>
+          <div id="formStatus" class="form-status"></div>
         </form>
       </div>
       <div class="contact-info">
@@ -1195,6 +1269,7 @@ body::after {
       </div>
       <div class="footer-bottom-right">
         <span>M. Szela /// Opole, PL</span>
+        <button id="cookieSettingsBtn" style="background:none;border:none;font-family:inherit;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--fg-muted);cursor:pointer;padding:0;transition:color 0.3s;" data-i18n="footer.cookies">Cookies</button>
         <div class="lang-switch">
           <button class="lang-btn active" data-lang="en">EN</button>
           <button class="lang-btn" data-lang="pl">PL</button>
@@ -1204,6 +1279,15 @@ body::after {
 
   </div>
 </footer>
+
+<!-- COOKIE CONSENT BANNER -->
+<div class="cookie-banner" id="cookieBanner">
+  <div class="cookie-banner-text" data-i18n="cookie.text">This site uses cookies for analytics. No personal data is collected without your consent.</div>
+  <div class="cookie-banner-actions">
+    <button class="cookie-btn cookie-btn--reject" id="cookieReject" data-i18n="cookie.reject">Reject</button>
+    <button class="cookie-btn cookie-btn--accept" id="cookieAccept" data-i18n="cookie.accept">Accept</button>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════
@@ -1589,6 +1673,10 @@ const i18n = {
     'footer.status':'STATUS','footer.statusVal':'■ Active — Accepting Projects',
     'footer.navTitle':'[navigate] ///',
     'footer.rights':'all rights reserved',
+    'footer.cookies':'Cookies',
+    'cookie.text':'This site uses cookies for analytics. No personal data is collected without your consent.',
+    'cookie.accept':'Accept','cookie.reject':'Reject',
+    'form.sending':'Sending...','form.success':'Brief sent! We\'ll respond within 48h.','form.error':'Failed to send. Try emailing maciej@instant-engineering.com directly.',
     'footer.servicesTitle':'[services] ///','footer.contactTitle':'[contact] ///','footer.locationShort':'Opole, Poland',
     'footer.ascii':'╔══════════════════════╗\n║  PRODUCT ENGINEERING ║\n║  DEPT. /// INSTANT   ║\n║  ◈ CAD   ▣ 3DP      ║\n║  ◉ IoT   ► PROTO    ║\n╚══════════════════════╝',
     'svc.cad.title':'CAD & Product Design','svc.print.title':'3D Printing & Prototyping','svc.iot.title':'IoT & Hardware','svc.iot.titleFull':'IoT & Hardware Consulting',
@@ -1655,6 +1743,10 @@ const i18n = {
     'footer.status':'STATUS','footer.statusVal':'■ Aktywny — Przyjmuję Projekty',
     'footer.navTitle':'[nawigacja] ///',
     'footer.rights':'wszelkie prawa zastrzeżone',
+    'footer.cookies':'Cookies',
+    'cookie.text':'Ta strona używa plików cookie do analityki. Żadne dane osobowe nie są zbierane bez Twojej zgody.',
+    'cookie.accept':'Akceptuj','cookie.reject':'Odrzuć',
+    'form.sending':'Wysyłanie...','form.success':'Brief wysłany! Odpowiemy w ciągu 48h.','form.error':'Nie udało się wysłać. Napisz bezpośrednio na maciej@instant-engineering.com.',
     'footer.servicesTitle':'[usługi] ///','footer.contactTitle':'[kontakt] ///','footer.locationShort':'Opole, Polska',
     'footer.ascii':'╔══════════════════════╗\n║  INŻYNIERIA PRODUKTU║\n║  DZIAŁ /// INSTANT   ║\n║  ◈ CAD   ▣ 3DP      ║\n║  ◉ IoT   ► PROTO    ║\n╚══════════════════════╝',
     'svc.cad.title':'CAD i Projektowanie Produktu','svc.print.title':'Druk 3D i Prototypowanie','svc.iot.title':'IoT i Hardware','svc.iot.titleFull':'IoT i Konsulting Sprzętowy',
@@ -1776,6 +1868,83 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     renderProjects(document.getElementById('portfolioGrid'), filtered);
   });
 });
+
+// ═══════════════════════════════════════════════
+// COOKIE CONSENT
+// ═══════════════════════════════════════════════
+(function() {
+  const COOKIE_NAME = 'instant_cookie_consent';
+  const banner = document.getElementById('cookieBanner');
+  const acceptBtn = document.getElementById('cookieAccept');
+  const rejectBtn = document.getElementById('cookieReject');
+  const settingsBtn = document.getElementById('cookieSettingsBtn');
+
+  function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : null;
+  }
+  function setCookie(name, value, days) {
+    const d = new Date(); d.setTime(d.getTime() + days*24*60*60*1000);
+    document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+  }
+
+  // Show banner if no consent stored
+  if (!getCookie(COOKIE_NAME)) {
+    setTimeout(() => banner.classList.add('show'), 800);
+  }
+
+  acceptBtn.addEventListener('click', () => {
+    setCookie(COOKIE_NAME, 'accepted', 365);
+    banner.classList.remove('show');
+  });
+  rejectBtn.addEventListener('click', () => {
+    setCookie(COOKIE_NAME, 'rejected', 365);
+    banner.classList.remove('show');
+  });
+  settingsBtn.addEventListener('click', () => {
+    // Reset consent — show banner again
+    document.cookie = COOKIE_NAME + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+    banner.classList.add('show');
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  });
+})();
+
+// ═══════════════════════════════════════════════
+// CONTACT FORM — FORMSPREE AJAX
+// ═══════════════════════════════════════════════
+(function() {
+  const form = document.getElementById('contactForm');
+  const statusEl = document.getElementById('formStatus');
+  if (!form) return;
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const t = translations[currentLang] || translations.en;
+
+    statusEl.className = 'form-status form-status--sending';
+    statusEl.textContent = t['form.sending'] || 'Sending...';
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        statusEl.className = 'form-status form-status--success';
+        statusEl.textContent = t['form.success'] || 'Brief sent!';
+        form.reset();
+      } else {
+        throw new Error('Server error');
+      }
+    } catch (err) {
+      statusEl.className = 'form-status form-status--error';
+      statusEl.textContent = t['form.error'] || 'Failed to send.';
+    }
+  });
+})();
 </script>
+<!-- Vercel Analytics — privacy-friendly, no cookie needed -->
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
