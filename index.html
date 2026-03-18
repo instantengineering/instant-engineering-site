@@ -1,9 +1,26 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="pl" data-theme="wb">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>instant-engineering /// CAD — 3D PRINTING — DIGITAL PRODUCTS</title>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="Instant-Engineering — inżynieria produktu. CAD, druk 3D, prototypowanie, IoT. Od koncepcji po fizyczny prototyp. Opole, Polska.">
+<meta name="keywords" content="inżynieria produktu, CAD, druk 3D, prototypowanie, Fusion 360, Shapr3D, IoT, Opole, Polska, product engineering, 3D printing, prototyping">
+<meta name="author" content="Maciej Szela">
+<meta name="robots" content="index, follow">
+<!-- Open Graph -->
+<meta property="og:title" content="Instant-Engineering — Inżynieria Produktu">
+<meta property="og:description" content="CAD, druk 3D, prototypowanie, IoT. Od koncepcji po fizyczny prototyp — szybko, precyzyjnie, bez biurokracji.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://instant-engineering.com">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:site_name" content="Instant-Engineering">
+<!-- Twitter -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Instant-Engineering — Inżynieria Produktu">
+<meta name="twitter:description" content="CAD, druk 3D, prototypowanie, IoT. Opole, Polska.">
+<title>Instant-Engineering /// CAD — 3D PRINTING — PROTOTYPING</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -30,6 +47,25 @@
   --noise-opacity: 0.02;
   --marquee-stroke: var(--border);
 }
+/* White/Black — clean, high-contrast default (like mobilemonitoring.pl) */
+[data-theme="wb"] {
+  --bg: #FFFFFF;
+  --bg-surface: #F7F7F7;
+  --fg: #1A1A1A;
+  --fg-dim: #4A4A4A;
+  --fg-muted: #8A8A8A;
+  --accent: #000000;
+  --accent-dim: rgba(0,0,0,0.04);
+  --border: #E0E0E0;
+  --border-light: #D0D0D0;
+  --wireframe-color: 0x000000;
+  --scan-opacity: 0.03;
+  --header-bg: rgba(255,255,255,0.95);
+  --noise-opacity: 0;
+  --marquee-stroke: #D0D0D0;
+}
+
+/* Pure B&W — stark, maximum contrast */
 [data-theme="bw"] {
   --bg: #FFFFFF;
   --bg-surface: #F5F5F5;
@@ -209,6 +245,8 @@ body::after {
 }
 .theme-btn:hover { border-color:var(--fg-dim); transform:scale(1.15); }
 .theme-btn.active { border-color:var(--accent); border-width:2px; }
+/* White/Black mode button: white circle with thin border */
+.theme-btn--wb { background:#FFFFFF; border-color:#D0D0D0; }
 /* Dark mode button: filled blueprint blue circle */
 .theme-btn--dark { background:#00293F; }
 /* B&W mode button: half black half white with diagonal line */
@@ -217,6 +255,7 @@ body::after {
   content:''; position:absolute; top:-1px; left:50%; width:1px; height:calc(100% + 2px);
   background:var(--border-light); transform:rotate(45deg); transform-origin:top center;
 }
+[data-theme="wb"] .theme-btn--wb { border-color:#000000; border-width:2px; }
 [data-theme="dark"] .theme-btn--dark { border-color:var(--accent); border-width:2px; }
 [data-theme="bw"] .theme-btn--bw { border-color:#000000; border-width:2px; }
 
@@ -313,6 +352,22 @@ body::after {
 .ascii-divider { text-align:center; font-size:13px; color:var(--fg-muted); letter-spacing:4px; padding:50px 0; opacity:0.5; margin-left:-40px; margin-right:-40px; overflow:hidden; }
 .ascii-divider.anim-ready { opacity:0; }
 .ascii-divider.anim-playing { opacity:0.5; }
+
+/* ─── RULER DIVIDER ─── */
+.ruler-divider {
+  position:relative; height:48px; margin:40px 0; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+}
+.ruler-divider svg {
+  width:100%; max-width:800px; height:48px;
+}
+.ruler-divider .ruler-line { stroke:var(--border-light); stroke-width:1; transition:stroke 0.5s; }
+.ruler-divider .ruler-tick { stroke:var(--fg-muted); transition:stroke 0.5s; }
+.ruler-divider .ruler-tick-major { stroke:var(--fg-dim); stroke-width:1.5; transition:stroke 0.5s; }
+.ruler-divider .ruler-label { fill:var(--fg-muted); font-family:'Space Mono',monospace; font-size:8px; transition:fill 0.5s; }
+/* Sweep-in animation via clip-path */
+.ruler-divider svg { clip-path:inset(0 50% 0 50%); transition:clip-path 1.2s cubic-bezier(0.25,0.46,0.45,0.94); }
+.ruler-divider.visible svg { clip-path:inset(0 0% 0 0%); }
 
 /* ─── SERVICES PAGE ─── */
 .service-detail { border:1px solid var(--border); padding:48px 40px; margin-bottom:32px; display:grid; grid-template-columns:1fr 1fr; gap:40px; transition:border-color 0.3s; }
@@ -578,7 +633,6 @@ body::after {
 @media (max-width:900px) {
   .services-grid, .portfolio-grid { grid-template-columns:1fr; }
   .projects-grid { grid-template-columns:1fr; }
-  .page { padding:90px 20px 80px; margin-left:20px; margin-right:20px; }
   .footer-badge { grid-template-columns:1fr; }
   .fb-right { align-items:flex-start; }
   .fb-logo-wrap, .fb-est, .fb-ascii { text-align:left; }
@@ -587,7 +641,151 @@ body::after {
   .footer-bottom { flex-direction:column; gap:8px; }
   .header-nav { display:none; }
   .hamburger { display:flex; }
-  .site-footer { padding:60px 20px 100px; margin-left:20px; margin-right:20px; }
+
+  /* ─── MOBILE: DRAWING GRID SIMPLIFICATION ─── */
+  /* Hide column numbers (1-8) and row labels (A-F) — meaningless on mobile */
+  .ds-strip-top, .ds-strip-bottom, .ds-strip-left, .ds-strip-right { display:none; }
+  /* Hide inner border — content needs every pixel */
+  .ds-inner { display:none; }
+  /* Reduce outer border inset */
+  .ds-outer { top:4px; left:4px; right:4px; bottom:4px; }
+
+  /* ─── MOBILE: TITLE BLOCK ─── */
+  .ds-title-block { display:none; }
+
+  /* ─── MOBILE: GRID OVERLAY ─── */
+  .grid-overlay {
+    top:4px; left:4px; right:4px; bottom:4px;
+    background-size: calc(100%/3) calc(100%/3);
+    opacity:0.03;
+  }
+
+  /* ─── MOBILE: HIDE VISUAL NOISE ─── */
+  .scan-line { display:none; }
+  body::after { display:none; } /* CRT lines */
+  .noise { opacity:0.008; }
+
+  /* ─── MOBILE: HIDE TICKER BAND ─── */
+  .ticker-band { display:none; }
+
+  /* ─── MOBILE: HEADER ─── */
+  .site-header {
+    top:4px; left:4px; right:4px;
+    height:52px; padding:0 16px;
+  }
+  .header-brand { font-size:14px; }
+  .header-logo { width:24px; height:26px; }
+
+  /* ─── MOBILE: PAGE LAYOUT ─── */
+  .page {
+    padding:68px 16px 32px;
+    margin-left:4px; margin-right:4px;
+  }
+  .site-footer {
+    padding:48px 16px 40px;
+    margin-left:4px; margin-right:4px;
+  }
+
+  /* ─── MOBILE: TYPOGRAPHY ─── */
+  .hero-headline { font-size:clamp(32px,9vw,56px); letter-spacing:-1px; }
+  .hero-sub { font-size:12px; letter-spacing:2px; padding:10px 0; }
+  .hero-desc { font-size:16px; line-height:1.7; }
+  .hero-cta { font-size:13px; padding:12px 24px; }
+  .section-header { font-size:12px; letter-spacing:2px; margin-bottom:32px; }
+  .sc-dept { font-size:10px; letter-spacing:2px; }
+  .sc-title { font-size:16px; }
+  .sc-desc { font-size:14px; line-height:1.6; }
+  .sc-specs { font-size:12px; }
+  .sc-specs li { padding:6px 0; }
+  .service-card { padding:24px 18px; }
+  .sd-title { font-size:22px; }
+  .sd-body { font-size:14px; line-height:1.7; }
+  .sd-specs { font-size:12px; }
+  .sd-specs li { padding:8px 0; }
+  .project-name { font-size:15px; }
+  .project-meta { font-size:11px; }
+  .cta-heading { font-size:clamp(24px,7vw,40px); }
+  .cta-sub { font-size:14px; }
+  .cta-btn { font-size:13px; padding:14px 28px; }
+  .about-name { font-size:24px; }
+  .about-title { font-size:12px; }
+  .about-bio { font-size:15px; line-height:1.7; }
+  .about-specs li { font-size:12px; padding:8px 0; }
+  .about-main { padding:28px 20px; }
+  .stat-number { font-size:36px; }
+  .stat-label { font-size:11px; }
+  .stat-card { padding:18px; }
+  .cap-tag { font-size:11px; padding:5px 10px; }
+  .form-heading { font-size:20px; }
+  .form-sub { font-size:13px; }
+  .form-label { font-size:11px; }
+  .form-input, .form-textarea { font-size:16px; padding:12px 14px; } /* 16px prevents iOS zoom */
+  .contact-form { padding:24px 18px; }
+  .ci-value { font-size:14px; }
+  .fb-brand { font-size:24px; }
+  .fb-tagline { font-size:11px; letter-spacing:2px; }
+  .fb-desc { font-size:13px; }
+  .fb-specs { font-size:11px; }
+  .footer-badge { padding:24px; gap:32px; }
+  .footer-col h4 { font-size:10px; }
+  .footer-col a { font-size:13px; }
+  .footer-bottom { font-size:11px; }
+
+  /* ─── MOBILE: HERO THREE.JS ─── */
+  .hero-right { min-height:260px; max-height:300px; }
+
+  /* ─── MOBILE: MARQUEE ─── */
+  .marquee-strip { font-size:clamp(36px,10vw,60px); padding:16px 0; margin-left:-16px; margin-right:-16px; }
+
+  /* ─── MOBILE: ASCII DIVIDER ─── */
+  .ascii-divider { font-size:11px; letter-spacing:2px; padding:32px 0; margin-left:-16px; margin-right:-16px; }
+
+  /* ─── MOBILE: FULL BLEED ─── */
+  .full-bleed { margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; }
+
+  /* ─── MOBILE: CONTACT FORM ─── */
+  .contact-form [style*="grid-template-columns"] { grid-template-columns:1fr !important; }
+
+  /* ─── MOBILE: PROJECT DETAIL ─── */
+  .pd-header { padding:24px 18px; }
+  .pd-title { font-size:clamp(22px,6vw,36px); }
+  .pd-client { font-size:12px; }
+  .pd-brief { font-size:15px; }
+  .pd-tag { font-size:11px; padding:4px 10px; }
+  .pd-step { grid-template-columns:40px 1fr; gap:12px; padding:18px 0; }
+  .pd-step-num { font-size:24px; }
+  .pd-step-title { font-size:14px; }
+  .pd-step-desc { font-size:13px; }
+  .pd-specs-table { font-size:12px; }
+  .pd-specs-table td:first-child { width:40%; }
+  .pd-desc { font-size:14px; }
+  .pd-next { padding:20px 16px; }
+  .pd-next-name { font-size:15px; }
+
+  /* ─── MOBILE: FOOTER ASCII ─── */
+  .fb-ascii { font-size:10px; }
+  .fb-badge-id { font-size:10px; padding:4px 10px; }
+}
+
+/* ─── TOUCH DEVICE: DISABLE CUSTOM CURSOR ─── */
+@media (hover:none) and (pointer:coarse) {
+  .custom-cursor { display:none !important; }
+  body, a, button, input, textarea, select,
+  .service-card, .project-card, .cap-tag, .filter-btn,
+  .sc-badge, .sd-cta, .footer-social a, .pd-next,
+  .project-detail-back { cursor:auto !important; }
+}
+
+/* ─── SMALL PHONES (≤390px) ─── */
+@media (max-width:390px) {
+  .hero-headline { font-size:28px; }
+  .hero-desc { font-size:15px; }
+  .page { padding:64px 12px 28px; }
+  .marquee-strip { font-size:32px; }
+  .about-main { padding:20px 14px; }
+  .contact-form { padding:20px 14px; }
+  .fb-brand { font-size:20px; }
+  .footer-badge { padding:18px; }
 }
 </style>
 </head>
@@ -636,6 +834,7 @@ body::after {
     <a href="#about" class="nav-link" data-page="about" data-i18n="nav.about">About</a>
     <a href="#contact" class="nav-link" data-page="contact" data-i18n="nav.contact">Contact</a>
     <div class="theme-switcher">
+      <button class="theme-btn theme-btn--wb" data-set-theme="wb" aria-label="White/Black mode" title="Clean"></button>
       <button class="theme-btn theme-btn--dark" data-set-theme="dark" aria-label="Dark mode" title="Blueprint"></button>
       <button class="theme-btn theme-btn--bw" data-set-theme="bw" aria-label="B&W mode" title="B&W"></button>
     </div>
@@ -704,7 +903,33 @@ body::after {
       </div>
     </div>
 
-    <div class="ascii-divider">──────────── /// ──────────── ► ──────────── /// ────────────</div>
+    <!-- RULER DIVIDER — engineering ruler animation -->
+    <div class="ruler-divider reveal">
+      <svg viewBox="0 0 800 48" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main baseline -->
+        <line class="ruler-line" x1="0" y1="24" x2="800" y2="24"/>
+        <!-- Minor ticks every 10px (mm marks) -->
+        <g class="ruler-tick" stroke-width="0.8">
+          <line x1="40" y1="20" x2="40" y2="28"/><line x1="50" y1="20" x2="50" y2="28"/><line x1="60" y1="20" x2="60" y2="28"/><line x1="70" y1="20" x2="70" y2="28"/><line x1="80" y1="20" x2="80" y2="28"/><line x1="90" y1="20" x2="90" y2="28"/>
+          <line x1="110" y1="20" x2="110" y2="28"/><line x1="120" y1="20" x2="120" y2="28"/><line x1="130" y1="20" x2="130" y2="28"/><line x1="140" y1="20" x2="140" y2="28"/><line x1="150" y1="20" x2="150" y2="28"/><line x1="160" y1="20" x2="160" y2="28"/><line x1="170" y1="20" x2="170" y2="28"/><line x1="180" y1="20" x2="180" y2="28"/><line x1="190" y1="20" x2="190" y2="28"/>
+          <line x1="210" y1="20" x2="210" y2="28"/><line x1="220" y1="20" x2="220" y2="28"/><line x1="230" y1="20" x2="230" y2="28"/><line x1="240" y1="20" x2="240" y2="28"/><line x1="250" y1="20" x2="250" y2="28"/><line x1="260" y1="20" x2="260" y2="28"/><line x1="270" y1="20" x2="270" y2="28"/><line x1="280" y1="20" x2="280" y2="28"/><line x1="290" y1="20" x2="290" y2="28"/>
+          <line x1="310" y1="20" x2="310" y2="28"/><line x1="320" y1="20" x2="320" y2="28"/><line x1="330" y1="20" x2="330" y2="28"/><line x1="340" y1="20" x2="340" y2="28"/><line x1="350" y1="20" x2="350" y2="28"/><line x1="360" y1="20" x2="360" y2="28"/><line x1="370" y1="20" x2="370" y2="28"/><line x1="380" y1="20" x2="380" y2="28"/><line x1="390" y1="20" x2="390" y2="28"/>
+          <line x1="410" y1="20" x2="410" y2="28"/><line x1="420" y1="20" x2="420" y2="28"/><line x1="430" y1="20" x2="430" y2="28"/><line x1="440" y1="20" x2="440" y2="28"/><line x1="450" y1="20" x2="450" y2="28"/><line x1="460" y1="20" x2="460" y2="28"/><line x1="470" y1="20" x2="470" y2="28"/><line x1="480" y1="20" x2="480" y2="28"/><line x1="490" y1="20" x2="490" y2="28"/>
+          <line x1="510" y1="20" x2="510" y2="28"/><line x1="520" y1="20" x2="520" y2="28"/><line x1="530" y1="20" x2="530" y2="28"/><line x1="540" y1="20" x2="540" y2="28"/><line x1="550" y1="20" x2="550" y2="28"/><line x1="560" y1="20" x2="560" y2="28"/><line x1="570" y1="20" x2="570" y2="28"/><line x1="580" y1="20" x2="580" y2="28"/><line x1="590" y1="20" x2="590" y2="28"/>
+          <line x1="610" y1="20" x2="610" y2="28"/><line x1="620" y1="20" x2="620" y2="28"/><line x1="630" y1="20" x2="630" y2="28"/><line x1="640" y1="20" x2="640" y2="28"/><line x1="650" y1="20" x2="650" y2="28"/><line x1="660" y1="20" x2="660" y2="28"/><line x1="670" y1="20" x2="670" y2="28"/><line x1="680" y1="20" x2="680" y2="28"/><line x1="690" y1="20" x2="690" y2="28"/>
+          <line x1="710" y1="20" x2="710" y2="28"/><line x1="720" y1="20" x2="720" y2="28"/><line x1="730" y1="20" x2="730" y2="28"/><line x1="740" y1="20" x2="740" y2="28"/><line x1="750" y1="20" x2="750" y2="28"/><line x1="760" y1="20" x2="760" y2="28"/>
+        </g>
+        <!-- Major ticks every 100px (cm marks) + labels -->
+        <g class="ruler-tick-major">
+          <line x1="0" y1="14" x2="0" y2="34"/><line x1="100" y1="14" x2="100" y2="34"/><line x1="200" y1="14" x2="200" y2="34"/><line x1="300" y1="14" x2="300" y2="34"/><line x1="400" y1="14" x2="400" y2="34"/><line x1="500" y1="14" x2="500" y2="34"/><line x1="600" y1="14" x2="600" y2="34"/><line x1="700" y1="14" x2="700" y2="34"/><line x1="800" y1="14" x2="800" y2="34"/>
+        </g>
+        <g class="ruler-label">
+          <text x="0" y="44" text-anchor="middle">0</text><text x="100" y="44" text-anchor="middle">10</text><text x="200" y="44" text-anchor="middle">20</text><text x="300" y="44" text-anchor="middle">30</text><text x="400" y="44" text-anchor="middle">40</text><text x="500" y="44" text-anchor="middle">50</text><text x="600" y="44" text-anchor="middle">60</text><text x="700" y="44" text-anchor="middle">70</text><text x="800" y="44" text-anchor="middle">80</text>
+        </g>
+        <!-- Center marker: diamond -->
+        <polygon points="400,10 406,24 400,38 394,24" fill="none" stroke="var(--fg-muted)" stroke-width="0.8"/>
+      </svg>
+    </div>
 
     <div class="featured-section">
       <div class="section-header"><span class="sh-id">[02]</span><span data-i18n="home.featured">Featured Projects</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
@@ -1168,23 +1393,26 @@ document.querySelectorAll('.ascii-divider').forEach(el => {
 const cursor = document.getElementById('customCursor');
 const cursorIcons = cursor.querySelectorAll('svg');
 let cursorIdx = 0;
+const isTouchDevice = window.matchMedia('(hover:none) and (pointer:coarse)').matches;
 
-document.addEventListener('mousemove', e => {
-  cursor.style.left = e.clientX + 'px';
-  cursor.style.top = e.clientY + 'px';
-});
+if (!isTouchDevice) {
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
 
-// Scale cursor on interactive elements
-document.querySelectorAll('a, button, .service-card, .project-card, .filter-btn, .sc-badge, .sd-cta, .cap-tag, input, textarea, select').forEach(el => {
-  el.addEventListener('mouseenter', () => cursor.style.transform = 'translate(-50%,-50%) scale(1.5)');
-  el.addEventListener('mouseleave', () => cursor.style.transform = 'translate(-50%,-50%) scale(1)');
-});
+  // Scale cursor on interactive elements
+  document.querySelectorAll('a, button, .service-card, .project-card, .filter-btn, .sc-badge, .sd-cta, .cap-tag, input, textarea, select').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.style.transform = 'translate(-50%,-50%) scale(1.5)');
+    el.addEventListener('mouseleave', () => cursor.style.transform = 'translate(-50%,-50%) scale(1)');
+  });
 
-setInterval(() => {
-  cursorIcons[cursorIdx].classList.remove('active');
-  cursorIdx = (cursorIdx + 1) % cursorIcons.length;
-  cursorIcons[cursorIdx].classList.add('active');
-}, 3500);
+  setInterval(() => {
+    cursorIcons[cursorIdx].classList.remove('active');
+    cursorIdx = (cursorIdx + 1) % cursorIcons.length;
+    cursorIcons[cursorIdx].classList.add('active');
+  }, 3500);
+}
 
 // Color the cursor
 function updateCursorColor() {
@@ -1237,7 +1465,7 @@ function initWireframe() {
   wireCamera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.1, 1000);
   wireRenderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
   wireRenderer.setSize(container.clientWidth, container.clientHeight);
-  wireRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  wireRenderer.setPixelRatio(isTouchDevice ? 1 : Math.min(window.devicePixelRatio, 2));
   container.appendChild(wireRenderer.domElement);
 
   wireGroup = new THREE.Group();
@@ -1316,6 +1544,9 @@ function updateWireframeColor() {
   wireGroup.traverse(child => {
     if (child.material && child.material.color) child.material.color.setHex(col);
   });
+  // Update theme-color meta tag
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.content = theme === 'dark' ? '#00293F' : '#FFFFFF';
 }
 
 initWireframe();
@@ -1458,7 +1689,7 @@ const i18n = {
   }
 };
 
-let currentLang = 'en';
+let currentLang = 'pl';
 
 function setLang(lang) {
   currentLang = lang;
@@ -1488,6 +1719,14 @@ function setLang(lang) {
 document.querySelectorAll('.lang-btn').forEach(btn => {
   btn.addEventListener('click', () => setLang(btn.dataset.lang));
 });
+
+// Default: Polish, unless browser is English or URL has ?lang=en
+const urlLang = new URLSearchParams(window.location.search).get('lang');
+if (urlLang === 'en' || (!urlLang && navigator.language && navigator.language.startsWith('en'))) {
+  setLang('en');
+} else {
+  setLang('pl');
+}
 
 // ═══════════════════════════════════════════════
 // PROJECT DATA & RENDERING
