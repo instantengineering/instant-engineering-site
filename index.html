@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>instant-engineering /// CAD — 3D PRINTING — DIGITAL PRODUCTS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   INSTANT-ENGINEERING — PROTOTYPE v2
+   Multi-page, Dark/Light, 3D Wireframe, Morphing Cursor
+   ═══════════════════════════════════════════════ */
+
+/* ─── THEME VARIABLES ─── */
+[data-theme="dark"] {
+  --bg: #00293F;
+  --bg-surface: #063248;
+  --fg: #E8ECF2;
+  --fg-dim: #7A9AAE;
+  --fg-muted: #3A5E72;
+  --accent: #FFFFFF;
+  --accent-dim: rgba(255,255,255,0.08);
+  --border: #1A4458;
+  --border-light: #245568;
+  --wireframe-color: 0xFFFFFF;
+  --scan-opacity: 0.15;
+  --header-bg: rgba(0,41,63,0.92);
+  --noise-opacity: 0.02;
+  --marquee-stroke: var(--border);
+}
+[data-theme="bw"] {
+  --bg: #FFFFFF;
+  --bg-surface: #F5F5F5;
+  --fg: #000000;
+  --fg-dim: #000000;
+  --fg-muted: #000000;
+  --accent: #000000;
+  --accent-dim: rgba(0,0,0,0.06);
+  --border: #000000;
+  --border-light: #000000;
+  --wireframe-color: 0x000000;
+  --scan-opacity: 0.04;
+  --header-bg: rgba(255,255,255,0.92);
+  --noise-opacity: 0;
+  --marquee-stroke: #000000;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+::selection { background:var(--accent); color:var(--bg); }
+html { scroll-behavior:smooth; scrollbar-width:thin; scrollbar-color:var(--fg-muted) var(--bg); }
+
+body {
+  font-family: 'Space Mono', monospace;
+  background: var(--bg);
+  color: var(--fg);
+  overflow-x: hidden;
+  cursor: none;
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+a, button, input, textarea, select { cursor: none; }
+a, button, .service-card, .project-card, .cap-tag, .filter-btn, .sc-badge, .sd-cta, .footer-social a {
+  transition: all 0.3s ease;
+}
+
+/* ─── CUSTOM CURSOR ─── */
+.custom-cursor {
+  position: fixed;
+  width: 28px; height: 28px;
+  pointer-events: none;
+  z-index: 99999;
+  transform: translate(-50%, -50%);
+  will-change: left, top;
+  transition: transform 0.2s ease;
+}
+.custom-cursor svg {
+  position: absolute;
+  inset: 0;
+  width: 28px; height: 28px;
+  opacity: 0;
+  transform: scale(0.6) rotate(-30deg);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.custom-cursor svg.active {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* ─── SCAN LINE ─── */
+.scan-line {
+  position: fixed; top:0; left:0; right:0;
+  height: 2px;
+  background: var(--accent);
+  opacity: var(--scan-opacity);
+  z-index: 9999;
+  animation: scanDown 5s ease-in-out infinite;
+  box-shadow: 0 0 20px var(--accent);
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+@keyframes scanDown {
+  0%{top:-2px;opacity:0} 5%{opacity:var(--scan-opacity)} 95%{opacity:var(--scan-opacity)} 100%{top:100vh;opacity:0}
+}
+
+/* CRT lines */
+body::after {
+  content:''; position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px);
+  pointer-events:none; z-index:9998;
+}
+
+/* Noise */
+.noise {
+  position:fixed; inset:0; z-index:9997; pointer-events:none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  transition: opacity 0.5s;
+}
+
+/* ─── DRAWING SHEET BORDER ─── */
+.drawing-sheet { position:fixed; inset:0; pointer-events:none; z-index:100; }
+.ds-outer { position:absolute; top:8px; left:8px; right:8px; bottom:8px; border:1px solid var(--border-light); transition:border-color 0.5s, box-shadow 0.5s; box-shadow: -8px 0 0 var(--bg), 8px 0 0 var(--bg), 0 -8px 0 var(--bg), 0 8px 0 var(--bg); }
+.ds-inner { position:absolute; top:30px; left:30px; right:30px; bottom:30px; border:1px solid var(--border-light); transition:border-color 0.5s; }
+.ds-strip { position:absolute; display:flex; font-family:'Space Mono',monospace; background:var(--bg); transition:background 0.5s; }
+.ds-strip-top { top:8px; left:30px; right:30px; height:22px; z-index:101; }
+.ds-strip-bottom { bottom:8px; left:30px; right:30px; height:22px; z-index:101; }
+.ds-strip-left { top:30px; left:8px; bottom:30px; width:22px; flex-direction:column; z-index:101; }
+.ds-strip-right { top:30px; right:8px; bottom:30px; width:22px; flex-direction:column; z-index:101; }
+.ds-cell { flex:1; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--fg-muted); opacity:0.6; transition:color 0.5s; }
+.ds-strip-top .ds-cell+.ds-cell, .ds-strip-bottom .ds-cell+.ds-cell { border-left:1px solid var(--border-light); }
+.ds-strip-left .ds-cell+.ds-cell, .ds-strip-right .ds-cell+.ds-cell { border-top:1px solid var(--border-light); }
+
+/* Grid overlay */
+.grid-overlay {
+  position:fixed; top:30px; left:30px; right:30px; bottom:30px;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: calc(100%/8) calc(100%/6);
+  opacity:0.06; pointer-events:none; z-index:1;
+  transition: opacity 0.5s;
+}
+
+/* ─── TITLE BLOCK ─── */
+.ds-title-block {
+  position:absolute; bottom:53px; right:31px;
+  border:1px solid var(--border-light);
+  border-right:none; border-bottom:none;
+  background:var(--bg); font-family:'Space Mono',monospace;
+  min-width:280px; z-index:103;
+  transform-origin: bottom right;
+  pointer-events: auto;
+  transition: background 0.5s, border-color 0.5s, transform 0.5s cubic-bezier(0.4,0,0.2,1), min-width 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+}
+/* Slightly bigger on page load */
+.ds-title-block.tb-full { transform:scale(1.06); }
+/* Collapsed: compact pill */
+.ds-title-block.tb-collapsed { min-width:0; transform:scale(1); }
+.ds-title-block.tb-collapsed .tb-title-row { padding:4px 10px 5px; }
+.ds-title-block.tb-collapsed .tb-title-value { font-size:12px; }
+.ds-title-block.tb-collapsed .tb-small-label { font-size:7px; margin-bottom:1px; }
+.ds-title-block.tb-collapsed .tb-data-row { max-height:0; overflow:hidden; border-bottom:none; opacity:0; transition:max-height 0.4s, opacity 0.3s, border 0.3s; }
+/* Hover expand when collapsed */
+.ds-title-block.tb-collapsed:hover { min-width:280px; transform:scale(1.06); }
+.ds-title-block.tb-collapsed:hover .tb-title-row { padding:6px 12px 8px; }
+.ds-title-block.tb-collapsed:hover .tb-title-value { font-size:16px; }
+.ds-title-block.tb-collapsed:hover .tb-small-label { font-size:9px; margin-bottom:3px; }
+.ds-title-block.tb-collapsed:hover .tb-data-row { max-height:60px; opacity:1; border-bottom:1px solid var(--border-light); transition:max-height 0.5s, opacity 0.4s 0.1s, border 0.3s; }
+.ds-title-block.tb-collapsed:hover .tb-data-row:last-child { border-bottom:none; }
+
+.tb-title-row { padding:6px 12px 8px; border-bottom:1px solid var(--border-light); transition:padding 0.4s; }
+.tb-small-label { display:block; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--fg-muted); line-height:1; margin-bottom:3px; transition:font-size 0.4s, margin 0.4s; }
+.tb-title-value { display:block; font-size:16px; font-weight:700; color:var(--fg); transition:font-size 0.4s; }
+.tb-data-row { display:flex; border-bottom:1px solid var(--border-light); max-height:60px; opacity:1; transition:max-height 0.4s, opacity 0.3s, border 0.3s; }
+.tb-data-row:last-child { border-bottom:none; }
+.tb-data-cell { flex:1; padding:4px 10px 6px; border-right:1px solid var(--border-light); }
+.tb-data-cell:last-child { border-right:none; }
+.tb-data-value { display:block; font-size:14px; font-weight:700; color:var(--fg); }
+/* Inner grid line serves as shared right/bottom wall — restore inner borders on edge cells */
+.ds-title-block .tb-data-cell:last-child { border-right:1px solid var(--border-light); }
+.ds-title-block .tb-data-row:last-child { border-bottom:1px solid var(--border-light); }
+.ds-title-block.tb-collapsed .tb-data-row:last-child { border-bottom:none; }
+.ds-title-block.tb-collapsed:hover .tb-data-row:last-child { border-bottom:1px solid var(--border-light); }
+
+/* ─── HEADER ─── */
+.site-header {
+  position:fixed; top:31px; left:31px; right:31px; height:56px; z-index:200;
+  display:flex; align-items:center; justify-content:space-between; padding:0 28px;
+  border-bottom:1px solid var(--border);
+  background:var(--header-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  transition: background 0.5s, border-color 0.5s;
+}
+.header-brand { font-size:16px; font-weight:700; color:var(--fg); text-decoration:none; white-space:nowrap; display:inline-block; }
+.header-brand .h-hyphen { color:var(--accent); }
+.header-nav { display:flex; gap:24px; font-size:13px; text-transform:uppercase; letter-spacing:2px; align-items:center; }
+.header-nav a { color:var(--fg-dim); text-decoration:none; transition:color 0.3s; padding:4px 0; position:relative; }
+.header-nav a:hover { color:var(--accent); }
+.header-nav a.active-link { color:var(--fg); }
+.header-nav a::after { content:''; position:absolute; bottom:0; left:0; width:0; height:1px; background:var(--accent); transition:width 0.3s; }
+.header-nav a:hover::after, .header-nav a.active-link::after { width:100%; }
+
+/* Theme switcher — 3 circles */
+.theme-switcher { display:flex; gap:8px; align-items:center; }
+.theme-btn {
+  width:20px; height:20px; border-radius:50%; border:1px solid var(--border-light);
+  background:transparent; cursor:pointer; padding:0; position:relative;
+  transition: border-color 0.3s, transform 0.2s;
+  overflow:hidden;
+}
+.theme-btn:hover { border-color:var(--fg-dim); transform:scale(1.15); }
+.theme-btn.active { border-color:var(--accent); border-width:2px; }
+/* Dark mode button: filled blueprint blue circle */
+.theme-btn--dark { background:#00293F; }
+/* B&W mode button: half black half white with diagonal line */
+.theme-btn--bw { background:linear-gradient(135deg, #FFFFFF 50%, #000000 50%); }
+.theme-btn--bw::after {
+  content:''; position:absolute; top:-1px; left:50%; width:1px; height:calc(100% + 2px);
+  background:var(--border-light); transform:rotate(45deg); transform-origin:top center;
+}
+[data-theme="dark"] .theme-btn--dark { border-color:var(--accent); border-width:2px; }
+[data-theme="bw"] .theme-btn--bw { border-color:#000000; border-width:2px; }
+
+.header-logo { width:28px; height:30px; flex-shrink:0; }
+.header-logo .seg { fill:var(--accent); transition:fill 0.5s; }
+
+/* ─── TICKER BAND ─── */
+.ticker-band {
+  position:fixed; bottom:31px; left:31px; right:31px; height:22px; overflow:hidden;
+  z-index:102; border-top:1px solid var(--border); background:var(--bg);
+  transition: background 0.5s, border-color 0.5s;
+}
+.ticker-content { display:flex; white-space:nowrap; animation:ticker 35s linear infinite; font-size:13px; letter-spacing:2px; color:var(--fg-dim); line-height:22px; text-transform:uppercase; }
+.ticker-content span { padding:0 20px; }
+.ticker-content .accent { color:var(--accent); }
+@keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* ─── PAGES ─── */
+.page { display:none; min-height:100vh; padding:96px 40px 80px; opacity:0; transition:opacity 0.4s ease; margin-left:30px; margin-right:30px; }
+.page.active { display:block; }
+.page.visible { opacity:1; }
+
+.container { max-width:100%; width:100%; }
+
+/* Full-bleed sections extend to the drawing grid edges */
+.full-bleed { margin-left:-40px; margin-right:-40px; padding-left:40px; padding-right:40px; }
+
+/* ─── SECTION HEADER ─── */
+.section-header { display:flex; align-items:center; gap:16px; margin-bottom:48px; font-size:13px; text-transform:uppercase; letter-spacing:3px; color:var(--fg-dim); }
+.section-header .sh-id { color:var(--accent); font-weight:700; }
+.section-header .sh-line { flex:1; height:1px; background:var(--border); }
+.section-header .sh-end { color:var(--fg-muted); }
+
+/* ─── HOME: HERO ─── */
+.hero { display:grid; grid-template-columns:1fr 1.2fr; gap:40px; align-items:center; min-height:calc(100vh - 180px); padding-bottom:40px; }
+.hero-left { display:flex; flex-direction:column; justify-content:center; }
+.hero-headline { font-size:clamp(40px,5vw,72px); font-weight:700; line-height:0.92; letter-spacing:-2px; margin-bottom:24px; }
+.hero-headline .h-accent { color:var(--accent); }
+.hero-sub { font-size:14px; letter-spacing:4px; text-transform:uppercase; color:var(--fg-dim); padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-bottom:28px; }
+.hero-desc { font-size:16px; line-height:1.8; color:var(--fg-dim); max-width:520px; margin-bottom:32px; }
+.hero-cta { display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--bg); background:var(--accent); border:1px solid var(--accent); padding:14px 32px; text-decoration:none; transition:all 0.3s; cursor:none; }
+.hero-cta:hover { background:transparent; color:var(--accent); }
+.hero-right { position:relative; height:100%; min-height:400px; }
+#wireframe-canvas { width:100%; height:100%; display:block; }
+
+/* ─── HOME: SERVICES OVERVIEW ─── */
+.services-section { padding:80px 0; }
+.services-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+.service-card { border:1px solid var(--border); padding:32px 24px; transition:all 0.4s; opacity:0; transform:translateY(20px); position:relative; }
+.service-card.visible { opacity:1; transform:translateY(0); }
+.service-card:hover { border-color:var(--accent); }
+.sc-dept { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:6px; }
+.sc-title { font-size:18px; font-weight:700; margin-bottom:4px; }
+.sc-divider { width:100%; height:1px; background:var(--border); margin:14px 0; position:relative; }
+.sc-divider::after { content:'///'; position:absolute; right:0; top:-8px; font-size:12px; color:var(--fg-muted); background:var(--bg); padding-left:8px; transition:background 0.5s; }
+.sc-desc { font-size:14px; line-height:1.7; color:var(--fg-dim); margin-bottom:16px; }
+.sc-specs { list-style:none; font-size:12px; color:var(--fg-muted); text-transform:uppercase; letter-spacing:1px; }
+.sc-specs li { padding:4px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.sc-specs li:last-child { border-bottom:none; }
+.sc-specs .sv { color:var(--fg); }
+.sc-badge { display:inline-block; border:1px solid var(--accent); color:var(--accent); font-size:11px; padding:5px 14px; letter-spacing:2px; text-transform:uppercase; margin-top:14px; text-decoration:none; transition:all 0.3s; }
+.sc-badge:hover { background:var(--accent); color:var(--bg); }
+.sc-icon { position:absolute; top:24px; right:24px; font-size:16px; color:var(--fg-muted); transition:color 0.4s; }
+.service-card:hover .sc-icon { color:var(--accent); }
+
+/* ─── HOME: FEATURED PROJECTS ─── */
+.featured-section { padding:80px 0; }
+.projects-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; }
+.project-card { border:1px solid var(--border); aspect-ratio:16/9; position:relative; overflow:hidden; opacity:0; transform:translateY(20px); transition:all 0.6s; }
+.project-card.visible { opacity:1; transform:translateY(0); }
+.project-card:hover { border-color:var(--accent); }
+.project-wireframe { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.wireframe-lines { width:60%; height:60%; position:relative; }
+.wf-line { position:absolute; height:2px; background:var(--fg-muted); opacity:0.25; transition:all 0.6s; }
+.project-card:hover .wf-line { background:var(--accent); opacity:0.4; }
+.project-info { position:absolute; bottom:0; left:0; right:0; padding:16px 20px; background:linear-gradient(transparent,var(--bg)); }
+.project-id { font-size:11px; color:var(--fg-muted); letter-spacing:2px; text-transform:uppercase; }
+.project-name { font-size:16px; font-weight:700; margin-top:4px; }
+.project-meta { font-size:12px; color:var(--fg-dim); margin-top:4px; display:flex; gap:16px; text-transform:uppercase; letter-spacing:1px; }
+
+/* ─── HOME: CTA SECTION ─── */
+.cta-section { padding:80px 0; text-align:center; }
+.cta-heading { font-size:clamp(28px,3.5vw,48px); font-weight:700; margin-bottom:12px; }
+.cta-sub { font-size:15px; color:var(--fg-dim); margin-bottom:32px; letter-spacing:1px; }
+.cta-btn { display:inline-flex; align-items:center; gap:10px; font-family:inherit; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:var(--bg); background:var(--accent); border:1px solid var(--accent); padding:16px 40px; text-decoration:none; transition:all 0.3s; cursor:none; }
+.cta-btn:hover { background:transparent; color:var(--accent); }
+
+/* ─── MARQUEE ─── */
+.marquee-strip { overflow:hidden; white-space:nowrap; font-size:clamp(60px,8vw,120px); font-weight:700; color:transparent; -webkit-text-stroke:1px var(--marquee-stroke); line-height:1; padding:30px 0; user-select:none; margin-left:-40px; margin-right:-40px; }
+.marquee-inner { display:inline-block; animation:marqueeScroll 20s linear infinite; }
+@keyframes marqueeScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* ─── ASCII DIVIDER ─── */
+.ascii-divider { text-align:center; font-size:13px; color:var(--fg-muted); letter-spacing:4px; padding:50px 0; opacity:0.5; margin-left:-40px; margin-right:-40px; overflow:hidden; }
+.ascii-divider.anim-ready { opacity:0; }
+.ascii-divider.anim-playing { opacity:0.5; }
+
+/* ─── SERVICES PAGE ─── */
+.service-detail { border:1px solid var(--border); padding:48px 40px; margin-bottom:32px; display:grid; grid-template-columns:1fr 1fr; gap:40px; transition:border-color 0.3s; }
+.service-detail:hover { border-color:var(--accent); }
+.sd-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:6px; }
+.sd-title { font-size:28px; font-weight:700; margin-bottom:16px; }
+.sd-body { font-size:15px; line-height:1.8; color:var(--fg-dim); }
+.sd-specs { list-style:none; font-size:13px; }
+.sd-specs li { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); color:var(--fg-dim); text-transform:uppercase; letter-spacing:1px; }
+.sd-specs li:last-child { border-bottom:none; }
+.sd-specs .sdv { color:var(--fg); font-weight:700; }
+.sd-cta { display:inline-block; border:1px solid var(--accent); color:var(--accent); font-size:13px; padding:12px 28px; letter-spacing:2px; text-transform:uppercase; margin-top:20px; text-decoration:none; transition:all 0.3s; }
+.sd-cta:hover { background:var(--accent); color:var(--bg); }
+
+/* ─── PORTFOLIO PAGE ─── */
+.filter-bar { display:flex; gap:12px; margin-bottom:40px; flex-wrap:wrap; }
+.filter-btn { font-family:inherit; font-size:12px; letter-spacing:2px; text-transform:uppercase; padding:8px 20px; border:1px solid var(--border); background:transparent; color:var(--fg-dim); cursor:pointer; transition:all 0.3s; }
+.filter-btn:hover, .filter-btn.active { border-color:var(--accent); color:var(--accent); }
+.portfolio-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+
+/* ─── ABOUT PAGE ─── */
+.about-grid { display:grid; grid-template-columns:1fr 1fr; gap:48px; }
+.about-main { border:1px solid var(--border); padding:48px; }
+.about-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:20px; }
+.about-name { font-size:32px; font-weight:700; margin-bottom:4px; }
+.about-title { font-size:14px; color:var(--accent); text-transform:uppercase; letter-spacing:2px; margin-bottom:24px; }
+.about-bio { font-size:15px; line-height:1.8; color:var(--fg-dim); margin-bottom:24px; }
+.about-specs { list-style:none; font-size:13px; border-top:1px solid var(--border); }
+.about-specs li { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); color:var(--fg-dim); text-transform:uppercase; letter-spacing:1px; }
+.about-specs .asv { color:var(--fg); }
+.about-specs .as-accent { color:var(--accent); }
+.about-side { display:flex; flex-direction:column; gap:24px; }
+.stat-card { border:1px solid var(--border); padding:24px; text-align:center; }
+.stat-number { font-size:48px; font-weight:700; color:var(--accent); line-height:1; margin-bottom:8px; }
+.stat-label { font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-dim); }
+.stat-bar { width:100%; height:2px; background:var(--border); margin-top:14px; overflow:hidden; }
+.stat-bar-fill { height:100%; background:var(--accent); width:0; transition:width 1.5s ease; }
+.cap-card { border:1px solid var(--border); padding:24px; }
+.cap-header { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.cap-list { display:flex; flex-wrap:wrap; gap:6px; }
+.cap-tag { font-size:12px; padding:6px 14px; border:1px solid var(--border); color:var(--fg-dim); text-transform:uppercase; letter-spacing:1px; transition:all 0.3s; }
+.cap-tag:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ─── CONTACT PAGE ─── */
+.contact-grid { display:grid; grid-template-columns:1.2fr 0.8fr; gap:40px; }
+.contact-form { border:1px solid var(--border); padding:40px; }
+.form-heading { font-size:24px; font-weight:700; margin-bottom:8px; }
+.form-sub { font-size:14px; color:var(--fg-dim); margin-bottom:28px; letter-spacing:1px; }
+.form-group { margin-bottom:20px; }
+.form-label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:6px; }
+.form-input, .form-textarea {
+  width:100%; font-family:inherit; font-size:15px; padding:12px 16px;
+  background:transparent; border:1px solid var(--border); color:var(--fg);
+  transition:border-color 0.3s; outline:none;
+}
+.form-input:focus, .form-textarea:focus { border-color:var(--accent); }
+.form-textarea { min-height:120px; resize:vertical; }
+.form-select { width:100%; font-family:inherit; font-size:15px; padding:12px 16px; background:var(--bg); border:1px solid var(--border); color:var(--fg); }
+.form-submit { font-family:inherit; font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--bg); background:var(--accent); border:1px solid var(--accent); padding:14px 36px; cursor:pointer; transition:all 0.3s; }
+.form-submit:hover { background:transparent; color:var(--accent); }
+.contact-info { display:flex; flex-direction:column; gap:24px; }
+.ci-card { border:1px solid var(--border); padding:24px; }
+.ci-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:10px; }
+.ci-value { font-size:16px; font-weight:700; }
+.ci-value a { color:var(--fg); text-decoration:none; transition:color 0.3s; }
+.ci-value a:hover { color:var(--accent); }
+.ci-meta { font-size:12px; color:var(--fg-dim); margin-top:6px; letter-spacing:1px; text-transform:uppercase; }
+.status-card { border:1px solid var(--accent); padding:24px; text-align:center; }
+.status-dot { display:inline-block; width:8px; height:8px; background:var(--accent); border-radius:50%; margin-right:8px; animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,255,255,0.4)} 50%{opacity:0.7;box-shadow:0 0 0 8px rgba(255,255,255,0)} }
+.status-text { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+.status-sub { font-size:12px; color:var(--fg-dim); margin-top:8px; letter-spacing:1px; }
+
+/* ─── FOOTER ─── */
+/* ─── LANGUAGE TOGGLE ─── */
+.lang-switch { display:flex; gap:4px; align-items:center; margin-left:8px; }
+.lang-btn {
+  font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1px; text-transform:uppercase;
+  background:transparent; border:1px solid var(--border-light); color:var(--fg-muted);
+  padding:4px 10px; cursor:pointer; transition:all 0.3s;
+}
+.lang-btn:hover { border-color:var(--fg-dim); color:var(--fg-dim); }
+.lang-btn.active { border-color:var(--accent); color:var(--accent); }
+
+/* ─── FOOTER — DEPARTMENT BADGE STYLE ─── */
+.site-footer {
+  position:relative; z-index:10; border-top:1px solid var(--border);
+  padding:80px 40px 120px; margin-left:30px; margin-right:30px;
+  transition:border-color 0.5s;
+}
+.footer-inner { max-width:100%; }
+
+/* Badge block — the main visual element inspired by department badges */
+.footer-badge {
+  border:2px solid var(--border-light); padding:40px; margin-bottom:48px;
+  display:grid; grid-template-columns:1.3fr 1fr; gap:48px;
+  transition:border-color 0.5s;
+}
+.fb-brand { font-size:32px; font-weight:700; line-height:1; margin-bottom:4px; letter-spacing:-1px; }
+.fb-brand .f-accent { color:var(--accent); }
+.fb-tagline { font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:20px; }
+.fb-rule { width:100%; height:1px; background:var(--border); margin:16px 0; position:relative; }
+.fb-rule::after { content:'////'; position:absolute; right:0; top:-8px; font-size:12px; color:var(--fg-muted); background:var(--bg); padding-left:8px; transition:background 0.5s; }
+.fb-desc { font-size:14px; line-height:1.8; color:var(--fg-dim); margin-bottom:20px; }
+
+/* Badge spec table */
+.fb-specs { width:100%; border-collapse:collapse; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+.fb-specs td { padding:7px 0; border-bottom:1px solid var(--border); color:var(--fg-muted); }
+.fb-specs td:last-child { text-align:right; color:var(--fg); font-weight:700; letter-spacing:0; }
+.fb-specs tr:last-child td { border-bottom:none; }
+.fb-specs .dots { flex:1; border-bottom:1px dotted var(--border); margin:0 8px; }
+
+/* Right column — logo + ASCII art + social */
+.fb-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; }
+.fb-logo-wrap { text-align:right; }
+.fb-logo-wrap svg { width:60px; height:66px; }
+.fb-logo-wrap .seg { fill:var(--accent); transition:fill 0.5s; }
+.fb-est { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-top:10px; }
+.fb-ascii { font-size:12px; line-height:1.35; color:var(--fg-muted); opacity:0.35; white-space:pre; text-align:right; margin-top:20px; }
+.fb-badge-id { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-top:16px; border:1px solid var(--border); padding:5px 14px; display:inline-block; }
+.fb-social { display:flex; gap:8px; margin-top:auto; padding-top:20px; }
+.fb-social a {
+  width:30px; height:30px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center;
+  color:var(--fg-dim); text-decoration:none; font-size:14px; transition:all 0.3s; font-family:'Space Mono',monospace;
+}
+.fb-social a:hover { border-color:var(--accent); color:var(--accent); }
+
+/* Footer nav columns */
+.footer-nav-row {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:40px;
+  padding-bottom:32px; margin-bottom:24px; border-bottom:1px solid var(--border);
+}
+.footer-col h4 { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:14px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.footer-col ul { list-style:none; }
+.footer-col li { margin-bottom:6px; }
+.footer-col a { font-size:14px; color:var(--fg-dim); text-decoration:none; transition:color 0.3s; }
+.footer-col a:hover { color:var(--accent); }
+.footer-col .fc-meta { font-size:12px; color:var(--fg-muted); letter-spacing:1px; }
+
+/* Bottom bar with lang switch */
+.footer-bottom {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--fg-muted);
+}
+.footer-bottom-left { display:flex; gap:24px; }
+.footer-bottom-right { display:flex; gap:16px; align-items:center; }
+
+/* ─── SCROLL REVEAL ─── */
+.reveal { opacity:0; transform:translateY(20px); transition:all 0.7s ease; }
+.reveal.visible { opacity:1; transform:translateY(0); }
+
+/* ─── PROJECT DETAIL PAGE ─── */
+.project-detail-back {
+  display:inline-flex; align-items:center; gap:8px; font-size:13px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--fg-dim); text-decoration:none; margin-bottom:40px;
+  transition:color 0.3s; cursor:none;
+}
+.project-detail-back:hover { color:var(--accent); }
+
+.pd-header { border:1px solid var(--border); padding:40px; margin-bottom:32px; }
+.pd-id { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:8px; }
+.pd-title { font-size:clamp(28px,4vw,48px); font-weight:700; margin-bottom:8px; }
+.pd-client { font-size:14px; color:var(--accent); text-transform:uppercase; letter-spacing:2px; margin-bottom:20px; }
+.pd-tags { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+.pd-tag { font-size:12px; padding:5px 14px; border:1px solid var(--border); color:var(--fg-dim); text-transform:uppercase; letter-spacing:1px; }
+.pd-brief { font-size:16px; line-height:1.8; color:var(--fg-dim); max-width:720px; }
+
+/* Hero image — full width */
+.pd-hero-img {
+  width:100%; aspect-ratio:16/9; object-fit:cover; border:1px solid var(--border);
+  margin-bottom:32px;
+}
+
+/* Image gallery grid */
+.pd-gallery { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:48px; }
+.pd-gallery img {
+  width:100%; aspect-ratio:4/3; object-fit:cover; border:1px solid var(--border);
+  transition:border-color 0.3s; cursor:none;
+}
+.pd-gallery img:hover { border-color:var(--accent); }
+.pd-gallery img.wide { grid-column:span 2; aspect-ratio:16/9; }
+
+/* Specs + description split */
+.pd-content { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-bottom:48px; }
+.pd-section-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:20px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.pd-desc { font-size:15px; line-height:1.8; color:var(--fg-dim); }
+.pd-desc p { margin-bottom:16px; }
+.pd-specs-table { width:100%; font-size:13px; }
+.pd-specs-table tr td { padding:10px 0; border-bottom:1px solid var(--border); }
+.pd-specs-table tr:last-child td { border-bottom:none; }
+.pd-specs-table td:first-child { color:var(--fg-muted); text-transform:uppercase; letter-spacing:1px; width:45%; }
+.pd-specs-table td:last-child { color:var(--fg); font-weight:700; text-align:right; }
+
+/* Process / timeline */
+.pd-process { margin-bottom:48px; }
+.pd-step { display:grid; grid-template-columns:60px 1fr; gap:20px; padding:24px 0; border-bottom:1px solid var(--border); }
+.pd-step-num { font-size:32px; font-weight:700; color:var(--accent); line-height:1; }
+.pd-step-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+.pd-step-desc { font-size:14px; color:var(--fg-dim); line-height:1.6; }
+
+/* Technical drawings section */
+.pd-drawings { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:48px; }
+.pd-drawings img { width:100%; border:1px solid var(--border); transition:border-color 0.3s; }
+.pd-drawings img:hover { border-color:var(--accent); }
+
+/* Next project nav */
+.pd-next { border:1px solid var(--border); padding:32px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.3s; text-decoration:none; color:var(--fg); cursor:none; }
+.pd-next:hover { border-color:var(--accent); }
+.pd-next-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--fg-muted); margin-bottom:4px; }
+.pd-next-name { font-size:18px; font-weight:700; }
+.pd-next-arrow { font-size:24px; color:var(--accent); }
+
+@media (max-width:900px) {
+  .pd-content { grid-template-columns:1fr; }
+  .pd-gallery { grid-template-columns:1fr; }
+  .pd-gallery img.wide { grid-column:span 1; }
+  .pd-drawings { grid-template-columns:1fr; }
+}
+
+/* ─── HAMBURGER MENU ─── */
+.hamburger {
+  display:none; background:none; border:none; padding:4px; cursor:pointer;
+  flex-direction:column; gap:5px; z-index:300;
+}
+.hamburger span {
+  display:block; width:24px; height:2px; background:var(--fg); transition:all 0.3s;
+}
+.hamburger.active span:nth-child(1) { transform:rotate(45deg) translate(5px,5px); }
+.hamburger.active span:nth-child(2) { opacity:0; }
+.hamburger.active span:nth-child(3) { transform:rotate(-45deg) translate(5px,-5px); }
+
+.mobile-nav {
+  display:none; position:fixed; inset:0; z-index:250;
+  background:var(--bg); flex-direction:column; align-items:center; justify-content:center; gap:32px;
+  opacity:0; transition:opacity 0.3s;
+}
+.mobile-nav.open { display:flex; opacity:1; }
+.mobile-nav a {
+  font-family:'Space Mono',monospace; font-size:20px; letter-spacing:4px; text-transform:uppercase;
+  color:var(--fg); text-decoration:none; transition:color 0.3s; padding:8px 0;
+}
+.mobile-nav a:hover { color:var(--accent); }
+.mobile-nav .mobile-controls {
+  display:flex; gap:16px; align-items:center; margin-top:24px;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (min-width:1600px) {
+  .hero-headline { font-size:80px; }
+  .hero { gap:60px; }
+  .services-grid { gap:32px; }
+  .portfolio-grid { gap:32px; }
+  .service-detail { gap:60px; }
+  .about-grid { gap:60px; }
+}
+@media (max-width:1100px) {
+  .hero { grid-template-columns:1fr; }
+  .hero-right { min-height:350px; }
+  .service-detail { grid-template-columns:1fr; }
+  .about-grid { grid-template-columns:1fr; }
+  .contact-grid { grid-template-columns:1fr; }
+}
+@media (max-width:900px) {
+  .services-grid, .portfolio-grid { grid-template-columns:1fr; }
+  .projects-grid { grid-template-columns:1fr; }
+  .page { padding:90px 20px 80px; margin-left:20px; margin-right:20px; }
+  .footer-badge { grid-template-columns:1fr; }
+  .fb-right { align-items:flex-start; }
+  .fb-logo-wrap, .fb-est, .fb-ascii { text-align:left; }
+  .fb-social { justify-content:flex-start; }
+  .footer-nav-row { flex-wrap:wrap; gap:32px; }
+  .footer-bottom { flex-direction:column; gap:8px; }
+  .header-nav { display:none; }
+  .hamburger { display:flex; }
+  .site-footer { padding:60px 20px 100px; margin-left:20px; margin-right:20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+<div class="scan-line"></div>
+<div class="grid-overlay"></div>
+
+<!-- CUSTOM CURSOR -->
+<div class="custom-cursor" id="customCursor">
+  <!-- Crosshair -->
+  <svg class="active" viewBox="0 0 28 28"><line x1="14" y1="3" x2="14" y2="25" stroke="currentColor" stroke-width="1"/><line x1="3" y1="14" x2="25" y2="14" stroke="currentColor" stroke-width="1"/></svg>
+  <!-- Dimension -->
+  <svg viewBox="0 0 28 28"><line x1="6" y1="20" x2="22" y2="20" stroke="currentColor" stroke-width="1"/><line x1="6" y1="17" x2="6" y2="23" stroke="currentColor" stroke-width="1"/><line x1="22" y1="17" x2="22" y2="23" stroke="currentColor" stroke-width="1"/><line x1="14" y1="6" x2="14" y2="20" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/><text x="14" y="11" fill="currentColor" font-size="7" text-anchor="middle" font-family="monospace">42</text></svg>
+  <!-- Angle -->
+  <svg viewBox="0 0 28 28"><line x1="6" y1="22" x2="22" y2="22" stroke="currentColor" stroke-width="1"/><line x1="6" y1="22" x2="16" y2="6" stroke="currentColor" stroke-width="1"/><path d="M 11 22 A 5 5 0 0 1 9.5 17" fill="none" stroke="currentColor" stroke-width="0.8"/><text x="14" y="19" fill="currentColor" font-size="6" font-family="monospace">45°</text></svg>
+  <!-- Circle -->
+  <svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="14" cy="14" r="1.5" fill="currentColor"/><line x1="14" y1="14" x2="23" y2="14" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 1"/></svg>
+  <!-- Perpendicular -->
+  <svg viewBox="0 0 28 28"><line x1="5" y1="22" x2="23" y2="22" stroke="currentColor" stroke-width="1"/><line x1="14" y1="6" x2="14" y2="22" stroke="currentColor" stroke-width="1"/><rect x="14" y="17" width="5" height="5" fill="none" stroke="currentColor" stroke-width="0.8"/></svg>
+</div>
+
+<!-- DRAWING SHEET BORDER -->
+<div class="drawing-sheet">
+  <div class="ds-outer"></div>
+  <div class="ds-inner"></div>
+  <div class="ds-strip ds-strip-top"><div class="ds-cell">1</div><div class="ds-cell">2</div><div class="ds-cell">3</div><div class="ds-cell">4</div><div class="ds-cell">5</div><div class="ds-cell">6</div><div class="ds-cell">7</div><div class="ds-cell">8</div></div>
+  <div class="ds-strip ds-strip-bottom"><div class="ds-cell">1</div><div class="ds-cell">2</div><div class="ds-cell">3</div><div class="ds-cell">4</div><div class="ds-cell">5</div><div class="ds-cell">6</div><div class="ds-cell">7</div><div class="ds-cell">8</div></div>
+  <div class="ds-strip ds-strip-left"><div class="ds-cell">A</div><div class="ds-cell">B</div><div class="ds-cell">C</div><div class="ds-cell">D</div><div class="ds-cell">E</div><div class="ds-cell">F</div></div>
+  <div class="ds-strip ds-strip-right"><div class="ds-cell">A</div><div class="ds-cell">B</div><div class="ds-cell">C</div><div class="ds-cell">D</div><div class="ds-cell">E</div><div class="ds-cell">F</div></div>
+  <div class="ds-title-block">
+    <div class="tb-title-row"><span class="tb-small-label">TITLE</span><span class="tb-title-value" id="tb-page-title">instant-engineering</span></div>
+    <div class="tb-data-row"><div class="tb-data-cell"><span class="tb-small-label">SECTION</span><span class="tb-data-value" id="tb-section">HOME</span></div><div class="tb-data-cell"><span class="tb-small-label">PROJ. ANG.</span><span class="tb-data-value">&#x2312; &#x2299;</span></div><div class="tb-data-cell"><span class="tb-small-label">SIZE</span><span class="tb-data-value">WEB</span></div></div>
+    <div class="tb-data-row"><div class="tb-data-cell"><span class="tb-small-label">SCALE</span><span class="tb-data-value">1:1</span></div><div class="tb-data-cell"><span class="tb-small-label">UPDATED</span><span class="tb-data-value">03/17/26</span></div><div class="tb-data-cell"><span class="tb-small-label">SHEET</span><span class="tb-data-value" id="tb-sheet">1/5</span></div></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+  <a href="#home" class="header-brand nav-link" data-page="home">instant<span class="h-hyphen">-</span>engineering</a>
+  <nav class="header-nav">
+    <a href="#home" class="nav-link active-link" data-page="home" data-i18n="nav.home">Home</a>
+    <a href="#services" class="nav-link" data-page="services" data-i18n="nav.services">Services</a>
+    <a href="#portfolio" class="nav-link" data-page="portfolio" data-i18n="nav.portfolio">Portfolio</a>
+    <a href="#about" class="nav-link" data-page="about" data-i18n="nav.about">About</a>
+    <a href="#contact" class="nav-link" data-page="contact" data-i18n="nav.contact">Contact</a>
+    <div class="theme-switcher">
+      <button class="theme-btn theme-btn--dark" data-set-theme="dark" aria-label="Dark mode" title="Blueprint"></button>
+      <button class="theme-btn theme-btn--bw" data-set-theme="bw" aria-label="B&W mode" title="B&W"></button>
+    </div>
+    <div class="lang-switch">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="pl">PL</button>
+    </div>
+  </nav>
+  <button class="hamburger" id="hamburgerBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+  <svg class="header-logo" viewBox="0 0 100 110"><polygon class="seg" points="32,2 78,2 92,17 78,32 32,32 18,17"/><polygon class="seg" points="8,40 54,40 68,55 54,70 8,70 -6,55"/><polygon class="seg" points="32,78 78,78 92,93 78,108 32,108 18,93"/></svg>
+</header>
+
+<!-- MOBILE NAV OVERLAY -->
+<nav class="mobile-nav" id="mobileNav">
+  <a href="#home" class="nav-link" data-page="home" data-i18n="nav.home">Home</a>
+  <a href="#services" class="nav-link" data-page="services" data-i18n="nav.services">Services</a>
+  <a href="#portfolio" class="nav-link" data-page="portfolio" data-i18n="nav.portfolio">Portfolio</a>
+  <a href="#about" class="nav-link" data-page="about" data-i18n="nav.about">About</a>
+  <a href="#contact" class="nav-link" data-page="contact" data-i18n="nav.contact">Contact</a>
+  <div class="mobile-controls">
+    <div class="theme-switcher">
+      <button class="theme-btn theme-btn--dark" data-set-theme="dark" aria-label="Dark mode"></button>
+      <button class="theme-btn theme-btn--bw" data-set-theme="bw" aria-label="B&W mode"></button>
+    </div>
+    <div class="lang-switch">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="pl">PL</button>
+    </div>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker-band">
+  <div class="ticker-content">
+    <span>instant-engineering</span><span class="accent">///</span><span>CAD & product design</span><span class="accent">►</span><span>3d printing</span><span class="accent">///</span><span>prototyping</span><span class="accent">►</span><span>digital products</span><span class="accent">///</span><span>opole, poland</span><span class="accent">►</span><span>maciej@instant-engineering.com</span><span class="accent">///</span>
+    <span>instant-engineering</span><span class="accent">///</span><span>CAD & product design</span><span class="accent">►</span><span>3d printing</span><span class="accent">///</span><span>prototyping</span><span class="accent">►</span><span>digital products</span><span class="accent">///</span><span>opole, poland</span><span class="accent">►</span><span>maciej@instant-engineering.com</span><span class="accent">///</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- PAGES -->
+<!-- ═══════════════════════════════════════════ -->
+<main>
+
+<!-- ─── HOME ─── -->
+<div class="page active" id="page-home" data-title="instant-engineering" data-section="HOME" data-sheet="1/5">
+  <div class="container">
+    <div class="hero">
+      <div class="hero-left">
+        <div class="hero-headline" data-i18n-html="hero.headline">Product<br>Engineering<span class="h-accent">.</span></div>
+        <div class="hero-sub" data-i18n="hero.sub">3d printing &nbsp;///&nbsp; cad &nbsp;///&nbsp; digital products</div>
+        <div class="hero-desc" data-i18n="hero.desc">Solo engineering practice taking ideas from CAD to physical reality. Rapid prototyping, production-ready design, and IoT integration — one person, full stack, no bureaucracy.</div>
+        <a href="#contact" class="hero-cta nav-link" data-page="contact" data-i18n="hero.cta">Start a project &nbsp;>>></a>
+      </div>
+      <div class="hero-right" id="wireframeContainer"></div>
+    </div>
+
+    <div class="marquee-strip"><div class="marquee-inner">INSTANT-ENGINEERING /// INSTANT-ENGINEERING /// INSTANT-ENGINEERING /// INSTANT-ENGINEERING /// INSTANT-ENGINEERING ///&nbsp;</div></div>
+
+    <div class="services-section">
+      <div class="section-header"><span class="sh-id">[01]</span><span data-i18n="nav.services">Services</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+      <div class="services-grid">
+        <div class="service-card reveal"><div class="sc-icon">◈</div><div class="sc-dept">dept. A-01 /// cad division</div><div class="sc-title" data-i18n="svc.cad.title">CAD & Product Design</div><div class="sc-divider"></div><div class="sc-desc" data-i18n="svc.cad.desc">End-to-end product development from concept through manufacturing-ready 3D models. Parametric design, assemblies, technical documentation.</div><ul class="sc-specs"><li><span data-i18n="spec.platform">platform</span><span class="sv">Fusion 360 / Shapr3D</span></li><li><span data-i18n="spec.output">output</span><span class="sv">STEP / IGES / DWG</span></li><li><span data-i18n="spec.tolerance">tolerance</span><span class="sv">±0.1mm</span></li></ul><a href="#services" class="sc-badge nav-link" data-page="services" data-i18n="svc.details">details >>></a></div>
+        <div class="service-card reveal"><div class="sc-icon">▣</div><div class="sc-dept">dept. B-02 /// additive mfg</div><div class="sc-title" data-i18n="svc.print.title">3D Printing & Prototyping</div><div class="sc-divider"></div><div class="sc-desc" data-i18n="svc.print.desc">Rapid prototyping and small-batch production. FDM expertise with engineering-grade materials. From single prototypes to production jigs.</div><ul class="sc-specs"><li><span data-i18n="spec.method">method</span><span class="sv">FDM / FFF</span></li><li><span data-i18n="spec.materials">materials</span><span class="sv">PLA / PETG / ASA / PA</span></li><li><span data-i18n="spec.turnaround">turnaround</span><span class="sv">24-72h</span></li></ul><a href="#services" class="sc-badge nav-link" data-page="services" data-i18n="svc.details">details >>></a></div>
+        <div class="service-card reveal"><div class="sc-icon">◉</div><div class="sc-dept">dept. C-03 /// digital systems</div><div class="sc-title" data-i18n="svc.iot.title">IoT & Hardware</div><div class="sc-divider"></div><div class="sc-desc" data-i18n="svc.iot.desc">Connected product development. ESP32 prototyping, sensor integration, firmware, data dashboards bridging physical and digital.</div><ul class="sc-specs"><li><span data-i18n="spec.platform">platform</span><span class="sv">ESP32 / RPi</span></li><li><span data-i18n="spec.protocol">protocol</span><span class="sv">MQTT / BLE</span></li><li><span data-i18n="spec.interface">interface</span><span class="sv">Web / Mobile</span></li></ul><a href="#services" class="sc-badge nav-link" data-page="services" data-i18n="svc.details">details >>></a></div>
+      </div>
+    </div>
+
+    <div class="ascii-divider">──────────── /// ──────────── ► ──────────── /// ────────────</div>
+
+    <div class="featured-section">
+      <div class="section-header"><span class="sh-id">[02]</span><span data-i18n="home.featured">Featured Projects</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+      <div class="projects-grid" id="homeProjects"></div>
+    </div>
+
+    <div class="marquee-strip"><div class="marquee-inner" style="animation-direction:reverse;animation-duration:25s;">CAD /// 3D PRINTING /// IoT /// PROTOTYPING /// PRODUCT DESIGN /// DIGITAL SYSTEMS /// CAD /// 3D PRINTING /// IoT /// PROTOTYPING ///&nbsp;</div></div>
+
+    <div class="cta-section reveal">
+      <div class="cta-heading" data-i18n="cta.heading">Have a project?</div>
+      <div class="cta-sub" data-i18n="cta.sub">Send a brief. Receive a quote within 48h. ///</div>
+      <a href="#contact" class="cta-btn nav-link" data-page="contact" data-i18n="cta.btn">Get in touch &nbsp;>>></a>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SERVICES ─── -->
+<div class="page" id="page-services" data-title="instant-engineering" data-section="SERVICES" data-sheet="2/5">
+  <div class="container">
+    <div class="section-header"><span class="sh-id">[SERVICES]</span><span data-i18n="services.heading">What We Build</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+
+    <div class="service-detail reveal">
+      <div><div class="sd-label">dept. A-01 /// primary service</div><div class="sd-title" data-i18n="svc.cad.title">CAD & Product Design</div><div class="sd-body" data-i18n-html="svc.cad.body">End-to-end product development from initial concept sketches through manufacturing-ready 3D models. Parametric design with full assembly documentation, technical drawings with GD&T tolerances, and export to any production format.<br><br>Specializing in consumer product design, industrial enclosures, mechanical assemblies, and custom fixtures. Every model is designed for manufacturability from day one.</div><a href="#contact" class="sd-cta nav-link" data-page="contact" data-i18n="svc.quote">Request quote >>></a></div>
+      <div><div class="sd-label" data-i18n="svc.specsLabel">[specifications] ///</div><ul class="sd-specs"><li><span data-i18n="spec.primaryTool">primary tool</span><span class="sdv">Fusion 360</span></li><li><span data-i18n="spec.secondary">secondary</span><span class="sdv">Shapr3D</span></li><li><span data-i18n="spec.parametric">parametric</span><span class="sdv">Grasshopper</span></li><li><span data-i18n="spec.outputFormats">output formats</span><span class="sdv">STEP / IGES / DWG</span></li><li><span data-i18n="spec.meshExport">mesh export</span><span class="sdv">STL / 3MF</span></li><li><span data-i18n="spec.tolerance">tolerance</span><span class="sdv">±0.1mm</span></li><li><span data-i18n="spec.documentation">documentation</span><span class="sdv" data-i18n="spec.dwgGdt">2D drawings w/ GD&T</span></li><li><span data-i18n="spec.complexity">complexity</span><span class="sdv">■■■■■</span></li></ul></div>
+    </div>
+
+    <div class="service-detail reveal">
+      <div><div class="sd-label">dept. B-02 /// additive manufacturing</div><div class="sd-title" data-i18n="svc.print.title">3D Printing & Prototyping</div><div class="sd-body" data-i18n-html="svc.print.body">Rapid prototyping and small-batch production using FDM technology with engineering-grade materials. From single concept validation prototypes to production jigs, fixtures, and end-use parts.<br><br>Iterative design process — print, test, measure, refine. Physical prototypes shipped or delivered directly. Print-ready file optimization included.</div><a href="#contact" class="sd-cta nav-link" data-page="contact" data-i18n="svc.quote">Request quote >>></a></div>
+      <div><div class="sd-label" data-i18n="svc.specsLabel">[specifications] ///</div><ul class="sd-specs"><li><span data-i18n="spec.technology">technology</span><span class="sdv">FDM / FFF</span></li><li><span data-i18n="spec.materials">materials</span><span class="sdv">PLA / PETG / ASA / PA</span></li><li><span data-i18n="spec.buildVolume">build volume</span><span class="sdv">300×300×350mm</span></li><li><span data-i18n="spec.layerHeight">layer height</span><span class="sdv">0.1-0.3mm</span></li><li><span data-i18n="spec.infillRange">infill range</span><span class="sdv">15-100%</span></li><li><span data-i18n="spec.turnaround">turnaround</span><span class="sdv">24-72h</span></li><li><span data-i18n="spec.postProcess">post-process</span><span class="sdv" data-i18n="spec.sandingAssembly">Sanding / Assembly</span></li><li><span data-i18n="spec.delivery">delivery</span><span class="sdv" data-i18n="spec.physDigital">Physical + Digital</span></li></ul></div>
+    </div>
+
+    <div class="service-detail reveal">
+      <div><div class="sd-label">dept. C-03 /// digital systems</div><div class="sd-title" data-i18n="svc.iot.titleFull">IoT & Hardware Consulting</div><div class="sd-body" data-i18n-html="svc.iot.body">Connected product development bridging physical and digital. ESP32/sensor system prototyping, embedded firmware, hardware-software integration, and data dashboards.<br><br>From proof-of-concept sensor rigs to production-ready IoT devices. Full stack from circuit selection through enclosure design to cloud dashboard.</div><a href="#contact" class="sd-cta nav-link" data-page="contact" data-i18n="svc.quote">Request quote >>></a></div>
+      <div><div class="sd-label" data-i18n="svc.specsLabel">[specifications] ///</div><ul class="sd-specs"><li><span data-i18n="spec.microcontroller">microcontroller</span><span class="sdv">ESP32 / RPi</span></li><li><span data-i18n="spec.protocols">protocols</span><span class="sdv">MQTT / HTTP / BLE</span></li><li><span data-i18n="spec.sensors">sensors</span><span class="sdv" data-i18n="spec.sensorTypes">Temp / Humidity / Motion</span></li><li><span data-i18n="spec.interface">interface</span><span class="sdv" data-i18n="spec.webMobile">Web / Mobile Dashboard</span></li><li><span data-i18n="spec.firmware">firmware</span><span class="sdv">C++ / MicroPython</span></li><li><span data-i18n="spec.enclosure">enclosure</span><span class="sdv" data-i18n="spec.custom3dp">Custom 3D Printed</span></li><li><span data-i18n="spec.cloud">cloud</span><span class="sdv">AWS IoT / Custom</span></li><li><span data-i18n="spec.scope">scope</span><span class="sdv">■■■■□</span></li></ul></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PORTFOLIO ─── -->
+<div class="page" id="page-portfolio" data-title="instant-engineering" data-section="PORTFOLIO" data-sheet="3/5">
+  <div class="container">
+    <div class="section-header"><span class="sh-id">[PORTFOLIO]</span><span data-i18n="portfolio.heading">Selected Work</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all" data-i18n="portfolio.all">All</button>
+      <button class="filter-btn" data-filter="cad">CAD</button>
+      <button class="filter-btn" data-filter="3dprint" data-i18n="filter.3dprint">3D Print</button>
+      <button class="filter-btn" data-filter="iot">IoT</button>
+      <button class="filter-btn" data-filter="brand" data-i18n="filter.brand">Brand</button>
+    </div>
+    <div class="portfolio-grid" id="portfolioGrid"></div>
+  </div>
+</div>
+
+<!-- ─── ABOUT ─── -->
+<div class="page" id="page-about" data-title="instant-engineering" data-section="ABOUT" data-sheet="4/5">
+  <div class="container">
+    <div class="section-header"><span class="sh-id">[DOSSIER]</span><span data-i18n="nav.about">About</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+    <div class="about-grid">
+      <div class="about-main reveal">
+        <div class="about-label" data-i18n="about.label">[personnel file] /// clearance: public</div>
+        <div class="about-name">Maciej Szela</div>
+        <div class="about-title" data-i18n="about.title">Product Engineer /// Founder</div>
+        <div class="about-bio" data-i18n-html="about.bio">Production Engineering MSc from AGH University of Kraków. Postgraduate studies in 3D printing technology at Warsaw University of Technology. Previously co-founded and operated Kitely — a kitesurfing school built from zero to exit.<br><br>Now building instant-engineering — a product engineering practice focused on taking ideas from concept to physical reality. CAD modeling, rapid prototyping, IoT integration. Based in Opole, serving clients across Poland and Europe.</div>
+        <ul class="about-specs"><li><span>education</span><span class="asv">MSc Production Engineering</span></li><li><span>specialization</span><span class="asv">Additive Manufacturing</span></li><li><span>base</span><span class="asv">Opole, Poland</span></li><li><span>status</span><span class="as-accent">■ Active — Accepting Projects</span></li></ul>
+      </div>
+      <div class="about-side">
+        <div class="stat-card reveal"><div class="stat-number" data-target="3">0</div><div class="stat-label" data-i18n="about.stat1">core disciplines</div><div class="stat-bar"><div class="stat-bar-fill" data-width="100%"></div></div></div>
+        <div class="stat-card reveal"><div class="stat-number" data-target="500">0</div><div class="stat-label" data-i18n="about.stat2">+ print hours</div><div class="stat-bar"><div class="stat-bar-fill" data-width="85%"></div></div></div>
+        <div class="stat-card reveal"><div class="stat-number" data-target="50">0</div><div class="stat-label" data-i18n="about.stat3">+ cad models</div><div class="stat-bar"><div class="stat-bar-fill" data-width="70%"></div></div></div>
+        <div class="cap-card reveal"><div class="cap-header" data-i18n="about.capsLabel">[capabilities] ///</div><div class="cap-list"><span class="cap-tag">Fusion 360</span><span class="cap-tag">Shapr3D</span><span class="cap-tag">FDM</span><span class="cap-tag">ESP32</span><span class="cap-tag">IoT</span><span class="cap-tag">Grasshopper</span><span class="cap-tag">Python</span><span class="cap-tag">Parametric</span><span class="cap-tag">DFM</span><span class="cap-tag">GD&T</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CONTACT ─── -->
+<div class="page" id="page-contact" data-title="instant-engineering" data-section="CONTACT" data-sheet="5/5">
+  <div class="container">
+    <div class="section-header"><span class="sh-id">[CONTACT]</span><span data-i18n="contact.heading">Start a Project</span><span class="sh-line"></span><span class="sh-end">>>></span></div>
+    <div class="contact-grid">
+      <div class="contact-form reveal">
+        <div class="form-heading" data-i18n="contact.formTitle">Send a Brief</div>
+        <div class="form-sub" data-i18n="contact.formSub">Describe your project. Receive a quote within 48h. ///</div>
+        <form onsubmit="event.preventDefault()">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="form-group"><label class="form-label" data-i18n="contact.name">Name</label><input class="form-input" type="text" data-i18n-placeholder="contact.namePh"></div>
+            <div class="form-group"><label class="form-label" data-i18n="contact.email">Email</label><input class="form-input" type="email" placeholder="your@email.com"></div>
+          </div>
+          <div class="form-group"><label class="form-label" data-i18n="contact.type">Project Type</label><select class="form-select"><option data-i18n="contact.opt1">CAD & Product Design</option><option data-i18n="contact.opt2">3D Printing & Prototyping</option><option data-i18n="contact.opt3">IoT & Hardware</option><option data-i18n="contact.opt4">Multiple / Not Sure</option></select></div>
+          <div class="form-group"><label class="form-label" data-i18n="contact.brief">Brief Description</label><textarea class="form-textarea" data-i18n-placeholder="contact.briefPh"></textarea></div>
+          <button type="submit" class="form-submit" data-i18n="contact.send">Send Brief &nbsp;>>></button>
+        </form>
+      </div>
+      <div class="contact-info">
+        <div class="ci-card reveal"><div class="ci-label">[email] ///</div><div class="ci-value"><a href="mailto:maciej@instant-engineering.com">maciej@instant-engineering.com</a></div></div>
+        <div class="ci-card reveal"><div class="ci-label">[instagram] ///</div><div class="ci-value"><a href="https://instagram.com/instant_engineering" target="_blank">@instant_engineering</a></div></div>
+        <div class="ci-card reveal"><div class="ci-label" data-i18n="contact.locationLabel">[location] ///</div><div class="ci-value" data-i18n="contact.location">Opole, Poland</div><div class="ci-meta">50.6751°N, 17.9213°E</div></div>
+        <div class="status-card reveal"><div><span class="status-dot"></span><span class="status-text" data-i18n="contact.available">Available</span></div><div class="status-sub" data-i18n="contact.accepting">accepting projects /// Q1 2026</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PROJECT DETAIL: NOBILE ─── -->
+<div class="page" id="page-project-nobile" data-title="instant-engineering" data-section="CASE STUDY" data-sheet="PRJ-001">
+  <div class="container">
+    <a href="#portfolio" class="project-detail-back nav-link" data-page="portfolio" data-i18n="prj.back"><<< Back to portfolio</a>
+
+    <div class="pd-header reveal">
+      <div class="pd-id">PRJ-001 /// DEPT. A-01 + B-02</div>
+      <div class="pd-title">Nobile Kitehandle V3</div>
+      <div class="pd-client" data-i18n="prj.nobile.client">Client: Nobile Kiteboarding</div>
+      <div class="pd-tags">
+        <span class="pd-tag">CAD</span>
+        <span class="pd-tag">3D Print</span>
+        <span class="pd-tag">PETG</span>
+        <span class="pd-tag">Product Design</span>
+        <span class="pd-tag">DFM</span>
+      </div>
+      <div class="pd-brief" data-i18n-html="prj.nobile.brief">Custom kiteboard grab handle designed for Nobile Kiteboarding. Multiple design iterations with clip-based mounting system, 3D printed in PETG for real-world testing in Egypt and Poland. Final STEP files delivered for injection molding production.</div>
+    </div>
+
+    <img class="pd-hero-img reveal" src="projects/nobile/IMG_4751.jpg" alt="Nobile Kitehandle V3 — 3D render" loading="lazy">
+
+    <div class="pd-gallery">
+      <img class="reveal" src="projects/nobile/IMG_4755.jpg" alt="CAD wireframe view" loading="lazy">
+      <img class="reveal" src="projects/nobile/IMG_4758.jpg" alt="CAD detail — clip mechanism" loading="lazy">
+      <img class="wide reveal" src="projects/nobile/photo_on_board.jpg" alt="3D printed handles mounted on kiteboard" loading="lazy">
+      <img class="reveal" src="projects/nobile/cad_on_board_1.png" alt="CAD — handle on kiteboard" loading="lazy">
+      <img class="reveal" src="projects/nobile/cad_on_board_2.png" alt="CAD — handle detail on board" loading="lazy">
+      <img class="reveal" src="projects/nobile/cad_on_board_3.png" alt="CAD — handle close-up" loading="lazy">
+      <img class="reveal" src="projects/nobile/cad_assembly.png" alt="CAD — assembly view" loading="lazy">
+    </div>
+
+    <div class="pd-content">
+      <div class="reveal">
+        <div class="pd-section-label" data-i18n="prj.nobile.aboutLabel">[about the project] ///</div>
+        <div class="pd-desc" data-i18n-html="prj.nobile.about">
+          <p>Nobile Kiteboarding needed a custom grab handle for their kiteboard line. The existing off-the-shelf handles didn't match the board's geometry or brand aesthetic.</p>
+          <p>I designed a handle from scratch in Fusion 360 — parametric model with a clip-based mounting system that locks onto the board rail without permanent modification. The handle extension component connects via press-fit pins (ø6.1mm).</p>
+          <p>Multiple iterations were 3D printed in PETG and tested at kiteboarding sessions in Egypt and Hel (Poland). The design was validated under real conditions — salt water, UV exposure, high-impact loads during grabs.</p>
+          <p>Final deliverable: production-ready STEP files for injection molding tooling, plus technical drawing documentation (A3 format) with full GD&T dimensioning.</p>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="pd-section-label">[specifications] ///</div>
+        <table class="pd-specs-table">
+          <tr><td data-i18n="prj.nobile.specTool">Primary Tool</td><td>Fusion 360</td></tr>
+          <tr><td data-i18n="prj.nobile.specMat">Material (Prototype)</td><td>PETG</td></tr>
+          <tr><td data-i18n="prj.nobile.specProd">Production Target</td><td>Injection Molding</td></tr>
+          <tr><td data-i18n="prj.nobile.specDim">Handle Dimensions</td><td>195.35 x 51.42 x 40mm</td></tr>
+          <tr><td data-i18n="prj.nobile.specExt">Extension Size</td><td>26.39 x 26 x 40mm</td></tr>
+          <tr><td data-i18n="prj.nobile.specPin">Pin Diameter</td><td>ø6.1mm</td></tr>
+          <tr><td data-i18n="prj.nobile.specMount">Mounting</td><td>Clip-based, no modification</td></tr>
+          <tr><td data-i18n="prj.nobile.specOut">Output</td><td>STEP / STL / DWG</td></tr>
+          <tr><td data-i18n="prj.nobile.specIter">Iterations</td><td>V1 → V2 → V3 (final)</td></tr>
+          <tr><td data-i18n="prj.nobile.specTest">Field Tested</td><td>Egypt + Poland</td></tr>
+          <tr><td data-i18n="prj.nobile.specYear">Year</td><td>2025</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="pd-process reveal">
+      <div class="pd-section-label" data-i18n="prj.nobile.processLabel">[process] ///</div>
+      <div class="pd-step">
+        <div class="pd-step-num">01</div>
+        <div><div class="pd-step-title" data-i18n="prj.nobile.step1t">Brief & Geometry Analysis</div><div class="pd-step-desc" data-i18n="prj.nobile.step1d">Received board CAD files from Nobile. Analyzed rail profile, mounting constraints, and ergonomic requirements for grab handles.</div></div>
+      </div>
+      <div class="pd-step">
+        <div class="pd-step-num">02</div>
+        <div><div class="pd-step-title" data-i18n="prj.nobile.step2t">Parametric CAD Design</div><div class="pd-step-desc" data-i18n="prj.nobile.step2d">Designed handle and extension components in Fusion 360 with full parametric control. Clip-based mounting system designed for tool-free installation.</div></div>
+      </div>
+      <div class="pd-step">
+        <div class="pd-step-num">03</div>
+        <div><div class="pd-step-title" data-i18n="prj.nobile.step3t">Rapid Prototyping (FDM)</div><div class="pd-step-desc" data-i18n="prj.nobile.step3d">3D printed prototypes in PETG — multiple iterations refining ergonomics, clip tension, and structural integrity. V1 through V3 evolution.</div></div>
+      </div>
+      <div class="pd-step">
+        <div class="pd-step-num">04</div>
+        <div><div class="pd-step-title" data-i18n="prj.nobile.step4t">Field Testing</div><div class="pd-step-desc" data-i18n="prj.nobile.step4d">Prototypes mounted on Nobile boards and tested at sessions in Egypt and Hel, Poland. Validated salt water resistance, UV stability, and impact performance.</div></div>
+      </div>
+      <div class="pd-step">
+        <div class="pd-step-num">05</div>
+        <div><div class="pd-step-title" data-i18n="prj.nobile.step5t">Production Documentation</div><div class="pd-step-desc" data-i18n="prj.nobile.step5d">Delivered STEP files for injection mold tooling, A3 technical drawings with GD&T dimensioning, and manufacturing notes.</div></div>
+      </div>
+    </div>
+
+    <div class="pd-section-label" data-i18n="prj.nobile.drawingsLabel">[technical drawings] ///</div>
+    <div class="pd-drawings">
+      <img class="reveal" src="projects/nobile/IMG_4748.jpg" alt="Technical drawing — kite_handle_v3" loading="lazy">
+      <img class="reveal" src="projects/nobile/IMG_4779.jpg" alt="Technical drawing — handle_extension_v1" loading="lazy">
+    </div>
+
+    <div class="pd-gallery" style="margin-bottom:48px;">
+      <img class="reveal" src="projects/nobile/IMG_4780.jpg" alt="Additional view 1" loading="lazy">
+      <img class="reveal" src="projects/nobile/IMG_4787.jpg" alt="Additional view 2" loading="lazy">
+      <img class="wide reveal" src="projects/nobile/IMG_4798.jpg" alt="Additional view 3" loading="lazy">
+      <img class="reveal" src="projects/nobile/IMG_4800.jpg" alt="Additional view 4" loading="lazy">
+      <img class="reveal" src="projects/nobile/IMG_4804.jpg" alt="Additional view 5" loading="lazy">
+    </div>
+
+    <a href="#portfolio" class="pd-next nav-link" data-page="portfolio">
+      <div><div class="pd-next-label" data-i18n="prj.backPortfolio">Back to</div><div class="pd-next-name" data-i18n="prj.allProjects">All Projects</div></div>
+      <div class="pd-next-arrow">>>></div>
+    </a>
+  </div>
+</div>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="footer-inner">
+
+    <!-- Department badge block -->
+    <div class="footer-badge">
+      <div class="fb-left">
+        <div class="fb-brand">instant<span class="f-accent">-</span>engineering</div>
+        <div class="fb-tagline" data-i18n="footer.tagline">product engineering department</div>
+        <div class="fb-rule"></div>
+        <div class="fb-desc" data-i18n="footer.desc">Solo engineering practice. CAD modeling, rapid prototyping, additive manufacturing, and IoT integration. From concept to physical reality — fast, precise, no bureaucracy.</div>
+        <table class="fb-specs">
+          <tr><td data-i18n="footer.field">FIELD</td><td data-i18n="footer.fieldVal">Product Engineering</td></tr>
+          <tr><td data-i18n="footer.spec">SPECIALIZATION</td><td data-i18n="footer.specVal">Additive Manufacturing</td></tr>
+          <tr><td data-i18n="footer.base">BASE</td><td>Opole, Poland</td></tr>
+          <tr><td data-i18n="footer.coords">COORDINATES</td><td>50.6751°N, 17.9213°E</td></tr>
+          <tr><td data-i18n="footer.status">STATUS</td><td data-i18n="footer.statusVal">■ Active — Accepting Projects</td></tr>
+        </table>
+      </div>
+      <div class="fb-right">
+        <div>
+          <div class="fb-logo-wrap">
+            <svg viewBox="0 0 100 110"><polygon class="seg" points="32,2 78,2 92,17 78,32 32,32 18,17"/><polygon class="seg" points="8,40 54,40 68,55 54,70 8,70 -6,55"/><polygon class="seg" points="32,78 78,78 92,93 78,108 32,108 18,93"/></svg>
+          </div>
+          <div class="fb-est">EST. 2026 /// OPOLE, PL</div>
+          <div class="fb-badge-id">BADGE ID: IE-001-CTRL</div>
+          <div class="fb-ascii" data-i18n-html="footer.ascii">╔══════════════════════╗
+║  PRODUCT ENGINEERING ║
+║  DEPT. /// INSTANT   ║
+║  ◈ CAD   ▣ 3DP      ║
+║  ◉ IoT   ► PROTO    ║
+╚══════════════════════╝</div>
+        </div>
+        <div class="fb-social">
+          <a href="https://instagram.com/instant_engineering" target="_blank" title="Instagram">IG</a>
+          <a href="https://linkedin.com" target="_blank" title="LinkedIn">IN</a>
+          <a href="mailto:maciej@instant-engineering.com" title="Email">@</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation columns -->
+    <div class="footer-nav-row">
+      <div class="footer-col"><h4 data-i18n="footer.servicesTitle">[services] ///</h4><ul><li><a href="#services" class="nav-link" data-page="services" data-i18n="nav.services.cad">CAD & Product Design</a></li><li><a href="#services" class="nav-link" data-page="services" data-i18n="nav.services.print">3D Printing</a></li><li><a href="#services" class="nav-link" data-page="services" data-i18n="nav.services.iot">IoT & Hardware</a></li></ul></div>
+      <div class="footer-col"><h4 data-i18n="footer.navTitle">[navigate] ///</h4><ul><li><a href="#portfolio" class="nav-link" data-page="portfolio" data-i18n="nav.portfolio">Portfolio</a></li><li><a href="#about" class="nav-link" data-page="about" data-i18n="nav.about">About</a></li><li><a href="#contact" class="nav-link" data-page="contact" data-i18n="nav.contact">Contact</a></li></ul></div>
+      <div class="footer-col"><h4 data-i18n="footer.contactTitle">[contact] ///</h4><ul><li><span class="fc-meta">maciej@instant-engineering.com</span></li><li><span class="fc-meta" data-i18n="footer.locationShort">Opole, Poland</span></li><li><span class="fc-meta">50.6751°N, 17.9213°E</span></li></ul></div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="footer-bottom">
+      <div class="footer-bottom-left">
+        <span>© 2026 instant-engineering</span>
+        <span data-i18n="footer.rights">all rights reserved</span>
+      </div>
+      <div class="footer-bottom-right">
+        <span>M. Szela /// Opole, PL</span>
+        <div class="lang-switch">
+          <button class="lang-btn active" data-lang="en">EN</button>
+          <button class="lang-btn" data-lang="pl">PL</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+// ROUTER
+// ═══════════════════════════════════════════════
+const pages = document.querySelectorAll('.page');
+const navLinks = document.querySelectorAll('.nav-link');
+const headerLinks = document.querySelectorAll('.header-nav .nav-link');
+
+function navigate(pageName) {
+  pages.forEach(p => { p.classList.remove('active','visible'); });
+  const target = document.getElementById('page-' + pageName);
+  if (!target) return;
+  target.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => target.classList.add('visible')));
+
+  // Update title block
+  document.getElementById('tb-section').textContent = target.dataset.section;
+  document.getElementById('tb-sheet').textContent = target.dataset.sheet;
+
+  // Update active nav link
+  headerLinks.forEach(l => l.classList.toggle('active-link', l.dataset.page === pageName));
+
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  // Reset title block to expanded state on page change
+  const tb = document.querySelector('.ds-title-block');
+  if (tb) { tb.classList.remove('tb-collapsed'); tb.classList.add('tb-full'); }
+
+  // Trigger reveals on new page
+  setTimeout(() => {
+    target.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    target.querySelectorAll('.service-card').forEach(el => observer.observe(el));
+    target.querySelectorAll('.project-card').forEach(el => observer.observe(el));
+    target.querySelectorAll('.stat-card').forEach(el => observer.observe(el));
+    // Reset & re-observe ascii dividers and CTA scramble for new page
+    target.querySelectorAll('.ascii-divider').forEach(el => {
+      delete el.dataset.played;
+      el.classList.add('anim-ready');
+      el.classList.remove('anim-playing');
+      if (el.dataset.finalText) el.textContent = el.dataset.finalText;
+      if (typeof dividerObserver !== 'undefined') dividerObserver.observe(el);
+    });
+  }, 100);
+}
+
+navLinks.forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const page = link.dataset.page;
+    if (page) { navigate(page); history.pushState(null, '', '#' + page); }
+  });
+});
+
+window.addEventListener('popstate', () => {
+  const hash = location.hash.slice(1) || 'home';
+  navigate(hash);
+});
+
+// Init from hash
+const initPage = location.hash.slice(1) || 'home';
+if (initPage !== 'home') navigate(initPage);
+else { document.getElementById('page-home').classList.add('visible'); }
+
+// ═══════════════════════════════════════════════
+// TITLE BLOCK COLLAPSE ON SCROLL
+// ═══════════════════════════════════════════════
+const titleBlock = document.querySelector('.ds-title-block');
+titleBlock.classList.add('tb-full');
+
+let tbScrollTimer;
+window.addEventListener('scroll', () => {
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+  if (scrollY > 120) {
+    titleBlock.classList.remove('tb-full');
+    titleBlock.classList.add('tb-collapsed');
+  } else {
+    titleBlock.classList.remove('tb-collapsed');
+    titleBlock.classList.add('tb-full');
+  }
+}, { passive:true });
+
+// ═══════════════════════════════════════════════
+// SCROLL REVEAL
+// ═══════════════════════════════════════════════
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      const counter = entry.target.querySelector('.stat-number');
+      if (counter && !counter.dataset.counted) { counter.dataset.counted='true'; animateCounter(counter); }
+      const bar = entry.target.querySelector('.stat-bar-fill');
+      if (bar && !bar.dataset.filled) { bar.dataset.filled='true'; setTimeout(()=>{ bar.style.width=bar.dataset.width; },300); }
+    }
+  });
+}, {threshold:0.15});
+
+document.querySelectorAll('.reveal,.service-card,.project-card,.stat-card,.cap-card').forEach(el=>observer.observe(el));
+
+function animateCounter(el) {
+  const target=parseInt(el.dataset.target), dur=1500, start=performance.now();
+  function update(now) { const p=Math.min((now-start)/dur,1); el.textContent=Math.round((1-Math.pow(1-p,3))*target); if(p<1) requestAnimationFrame(update); }
+  requestAnimationFrame(update);
+}
+
+// ═══════════════════════════════════════════════
+// TEXT SCRAMBLE EFFECT
+// ═══════════════════════════════════════════════
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+function textScramble(el, finalText, duration) {
+  const len = finalText.length;
+  const start = performance.now();
+  // One lock time per char — left to right with slight jitter
+  const locks = Array.from({length: len}, (_, i) =>
+    0.2 + (i / len) * 0.65 + Math.random() * 0.12
+  );
+
+  (function tick() {
+    const p = Math.min((performance.now() - start) / duration, 1);
+    let out = '';
+    for (let i = 0; i < len; i++) {
+      const ch = finalText[i];
+      if (ch === ' ' || ch === '-' || ch === '\u00a0') out += ch;
+      else if (p >= locks[i]) out += ch;
+      else out += SCRAMBLE_CHARS[(Math.random() * SCRAMBLE_CHARS.length) | 0];
+    }
+    el.textContent = out;
+    if (p < 1) requestAnimationFrame(tick);
+  })();
+}
+
+// Scramble the header brand on page load
+setTimeout(() => {
+  const brand = document.querySelector('.header-brand');
+  if (brand) textScramble(brand, brand.textContent, 1800);
+}, 200);
+
+// ═══════════════════════════════════════════════
+// ASCII DIVIDER ANIMATION
+// ═══════════════════════════════════════════════
+const ASCII_POOL = '-=+/\\|<>*#~^.:;!?@&_';
+
+function animateAsciiDivider(el) {
+  const finalText = el.dataset.finalText || el.textContent;
+  if (!el.dataset.finalText) el.dataset.finalText = finalText;
+  const len = finalText.length;
+  const center = len / 2;
+  const start = performance.now();
+  el.classList.remove('anim-ready');
+  el.classList.add('anim-playing');
+  // Lock from center outward
+  const locks = Array.from({length: len}, (_, i) =>
+    0.15 + (Math.abs(i - center) / center) * 0.6 + Math.random() * 0.12
+  );
+
+  (function tick() {
+    const p = Math.min((performance.now() - start) / 1600, 1);
+    let out = '';
+    for (let i = 0; i < len; i++) {
+      if (finalText[i] === ' ') out += ' ';
+      else if (p >= locks[i]) out += finalText[i];
+      else out += ASCII_POOL[(Math.random() * ASCII_POOL.length) | 0];
+    }
+    el.textContent = out;
+    if (p < 1) requestAnimationFrame(tick);
+  })();
+}
+
+const dividerObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !e.target.dataset.played) {
+      e.target.dataset.played = '1';
+      animateAsciiDivider(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('.ascii-divider').forEach(el => {
+  el.classList.add('anim-ready');
+  dividerObserver.observe(el);
+});
+
+// ═══════════════════════════════════════════════
+// CUSTOM CURSOR (morphing)
+// ═══════════════════════════════════════════════
+const cursor = document.getElementById('customCursor');
+const cursorIcons = cursor.querySelectorAll('svg');
+let cursorIdx = 0;
+
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+// Scale cursor on interactive elements
+document.querySelectorAll('a, button, .service-card, .project-card, .filter-btn, .sc-badge, .sd-cta, .cap-tag, input, textarea, select').forEach(el => {
+  el.addEventListener('mouseenter', () => cursor.style.transform = 'translate(-50%,-50%) scale(1.5)');
+  el.addEventListener('mouseleave', () => cursor.style.transform = 'translate(-50%,-50%) scale(1)');
+});
+
+setInterval(() => {
+  cursorIcons[cursorIdx].classList.remove('active');
+  cursorIdx = (cursorIdx + 1) % cursorIcons.length;
+  cursorIcons[cursorIdx].classList.add('active');
+}, 3500);
+
+// Color the cursor
+function updateCursorColor() {
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  cursor.style.color = c;
+}
+updateCursorColor();
+
+// ═══════════════════════════════════════════════
+// THEME TOGGLE
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.documentElement.dataset.theme = btn.dataset.setTheme;
+    updateCursorColor();
+    updateWireframeColor();
+  });
+});
+
+// ═══════════════════════════════════════════════
+// MOBILE HAMBURGER MENU
+// ═══════════════════════════════════════════════
+const hamburger = document.getElementById('hamburgerBtn');
+const mobileNav = document.getElementById('mobileNav');
+
+hamburger.addEventListener('click', () => {
+  hamburger.classList.toggle('active');
+  mobileNav.classList.toggle('open');
+  document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
+});
+
+mobileNav.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+    hamburger.classList.remove('active');
+    mobileNav.classList.remove('open');
+    document.body.style.overflow = '';
+  });
+});
+
+// ═══════════════════════════════════════════════
+// THREE.JS WIREFRAME
+// ═══════════════════════════════════════════════
+let wireScene, wireCamera, wireRenderer, wireGroup;
+
+function initWireframe() {
+  const container = document.getElementById('wireframeContainer');
+  if (!container || wireRenderer) return;
+
+  wireScene = new THREE.Scene();
+  wireCamera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.1, 1000);
+  wireRenderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+  wireRenderer.setSize(container.clientWidth, container.clientHeight);
+  wireRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(wireRenderer.domElement);
+
+  wireGroup = new THREE.Group();
+
+  const mat = new THREE.LineBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:0.5 });
+
+  // Main enclosure body
+  const box = new THREE.BoxGeometry(3.2, 1.6, 2.2);
+  wireGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(box), mat));
+
+  // Inner frame
+  const inner = new THREE.BoxGeometry(2.8, 1.2, 1.8);
+  const innerMat = new THREE.LineBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:0.2 });
+  wireGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(inner), innerMat));
+
+  // Display cutout (top)
+  const screen = new THREE.BoxGeometry(1.6, 0.05, 0.8);
+  const screenEdges = new THREE.LineSegments(new THREE.EdgesGeometry(screen), mat);
+  screenEdges.position.y = 0.82;
+  screenEdges.position.z = -0.3;
+  wireGroup.add(screenEdges);
+
+  // Mounting cylinders
+  const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4, 8);
+  const cylMat = new THREE.LineBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:0.35 });
+  [[-1.2,-0.8,-0.8],[1.2,-0.8,-0.8],[-1.2,-0.8,0.8],[1.2,-0.8,0.8]].forEach(p => {
+    const c = new THREE.LineSegments(new THREE.EdgesGeometry(cylGeo), cylMat);
+    c.position.set(...p);
+    wireGroup.add(c);
+  });
+
+  // Port cutout (side)
+  const port = new THREE.BoxGeometry(0.05, 0.5, 0.8);
+  const portEdges = new THREE.LineSegments(new THREE.EdgesGeometry(port), mat.clone());
+  portEdges.position.x = 1.62;
+  wireGroup.add(portEdges);
+
+  // Internal PCB plane
+  const pcb = new THREE.PlaneGeometry(2.4, 1.6);
+  const pcbMat = new THREE.LineBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:0.15 });
+  const pcbEdges = new THREE.LineSegments(new THREE.EdgesGeometry(pcb), pcbMat);
+  pcbEdges.rotation.x = Math.PI/2;
+  pcbEdges.position.y = -0.2;
+  wireGroup.add(pcbEdges);
+
+  // Sensor dome on top
+  const sphere = new THREE.SphereGeometry(0.3, 8, 6);
+  const sphereEdges = new THREE.LineSegments(new THREE.EdgesGeometry(sphere), cylMat);
+  sphereEdges.position.set(-0.8, 0.95, 0.3);
+  wireGroup.add(sphereEdges);
+
+  wireScene.add(wireGroup);
+  wireCamera.position.set(4.5, 3, 4.5);
+  wireCamera.lookAt(0, 0, 0);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    wireGroup.rotation.y += 0.004;
+    wireGroup.rotation.x = Math.sin(Date.now()*0.0003)*0.08;
+    wireRenderer.render(wireScene, wireCamera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    if (!container.clientWidth) return;
+    wireCamera.aspect = container.clientWidth / container.clientHeight;
+    wireCamera.updateProjectionMatrix();
+    wireRenderer.setSize(container.clientWidth, container.clientHeight);
+  });
+}
+
+function updateWireframeColor() {
+  if (!wireGroup) return;
+  const theme = document.documentElement.dataset.theme;
+  const col = theme === 'dark' ? 0xFFFFFF : 0x000000;
+  wireGroup.traverse(child => {
+    if (child.material && child.material.color) child.material.color.setHex(col);
+  });
+}
+
+initWireframe();
+
+// ═══════════════════════════════════════════════
+// I18N — LANGUAGE SYSTEM
+// ═══════════════════════════════════════════════
+const i18n = {
+  en: {
+    'nav.home':'Home','nav.services':'Services','nav.portfolio':'Portfolio','nav.about':'About','nav.contact':'Contact',
+    'hero.headline':'Product<br>Engineering<span class="h-accent">.</span>',
+    'hero.sub':'3d printing \u00a0///\u00a0 cad \u00a0///\u00a0 digital products',
+    'hero.desc':'Solo engineering practice taking ideas from CAD to physical reality. Rapid prototyping, production-ready design, and IoT integration — one person, full stack, no bureaucracy.',
+    'hero.cta':'Start a project \u00a0>>>',
+    'home.featured':'Featured Projects',
+    'cta.heading':'Have a project?',
+    'cta.sub':'Send a brief. Receive a quote within 48h. ///',
+    'cta.btn':'Get in touch \u00a0>>>',
+    'services.heading':'What We Build',
+    'portfolio.heading':'Selected Work',
+    'portfolio.all':'All',
+    'about.label':'[personnel file] /// clearance: public',
+    'about.title':'Product Engineer /// Founder',
+    'about.bio':'Production Engineering MSc from AGH University of Kraków. Postgraduate studies in 3D printing technology at Warsaw University of Technology. Previously co-founded and operated Kitely — a kitesurfing school built from zero to exit.<br><br>Now building instant-engineering — a product engineering practice focused on taking ideas from concept to physical reality. CAD modeling, rapid prototyping, IoT integration. Based in Opole, serving clients across Poland and Europe.',
+    'contact.heading':'Start a Project',
+    'contact.formTitle':'Send a Brief',
+    'contact.formSub':'Describe your project. Receive a quote within 48h. ///',
+    'contact.name':'Name','contact.namePh':'Your name',
+    'contact.type':'Project Type',
+    'contact.opt1':'CAD & Product Design','contact.opt2':'3D Printing & Prototyping','contact.opt3':'IoT & Hardware','contact.opt4':'Multiple / Not Sure',
+    'contact.brief':'Brief Description','contact.briefPh':'Tell me about your project...',
+    'contact.send':'Send Brief \u00a0>>>',
+    'contact.available':'Available','contact.accepting':'accepting projects /// Q1 2026',
+    'nav.services.cad':'CAD & Product Design','nav.services.print':'3D Printing','nav.services.iot':'IoT & Hardware',
+    'footer.tagline':'product engineering department',
+    'footer.desc':'Solo engineering practice. CAD modeling, rapid prototyping, additive manufacturing, and IoT integration. From concept to physical reality — fast, precise, no bureaucracy.',
+    'footer.field':'FIELD','footer.fieldVal':'Product Engineering',
+    'footer.spec':'SPECIALIZATION','footer.specVal':'Additive Manufacturing',
+    'footer.base':'BASE','footer.coords':'COORDINATES',
+    'footer.status':'STATUS','footer.statusVal':'■ Active — Accepting Projects',
+    'footer.navTitle':'[navigate] ///',
+    'footer.rights':'all rights reserved',
+    'footer.servicesTitle':'[services] ///','footer.contactTitle':'[contact] ///','footer.locationShort':'Opole, Poland',
+    'footer.ascii':'╔══════════════════════╗\n║  PRODUCT ENGINEERING ║\n║  DEPT. /// INSTANT   ║\n║  ◈ CAD   ▣ 3DP      ║\n║  ◉ IoT   ► PROTO    ║\n╚══════════════════════╝',
+    'svc.cad.title':'CAD & Product Design','svc.print.title':'3D Printing & Prototyping','svc.iot.title':'IoT & Hardware','svc.iot.titleFull':'IoT & Hardware Consulting',
+    'svc.cad.desc':'End-to-end product development from concept through manufacturing-ready 3D models. Parametric design, assemblies, technical documentation.',
+    'svc.print.desc':'Rapid prototyping and small-batch production. FDM expertise with engineering-grade materials. From single prototypes to production jigs.',
+    'svc.iot.desc':'Connected product development. ESP32 prototyping, sensor integration, firmware, data dashboards bridging physical and digital.',
+    'svc.cad.body':'End-to-end product development from initial concept sketches through manufacturing-ready 3D models. Parametric design with full assembly documentation, technical drawings with GD&T tolerances, and export to any production format.<br><br>Specializing in consumer product design, industrial enclosures, mechanical assemblies, and custom fixtures. Every model is designed for manufacturability from day one.',
+    'svc.print.body':'Rapid prototyping and small-batch production using FDM technology with engineering-grade materials. From single concept validation prototypes to production jigs, fixtures, and end-use parts.<br><br>Iterative design process — print, test, measure, refine. Physical prototypes shipped or delivered directly. Print-ready file optimization included.',
+    'svc.iot.body':'Connected product development bridging physical and digital. ESP32/sensor system prototyping, embedded firmware, hardware-software integration, and data dashboards.<br><br>From proof-of-concept sensor rigs to production-ready IoT devices. Full stack from circuit selection through enclosure design to cloud dashboard.',
+    'svc.details':'details >>>','svc.quote':'Request quote >>>','svc.specsLabel':'[specifications] ///',
+    'spec.platform':'platform','spec.output':'output','spec.tolerance':'tolerance','spec.method':'method','spec.materials':'materials','spec.turnaround':'turnaround','spec.protocol':'protocol','spec.interface':'interface',
+    'spec.primaryTool':'primary tool','spec.secondary':'secondary','spec.parametric':'parametric','spec.outputFormats':'output formats','spec.meshExport':'mesh export','spec.documentation':'documentation','spec.complexity':'complexity','spec.dwgGdt':'2D drawings w/ GD&T',
+    'spec.technology':'technology','spec.buildVolume':'build volume','spec.layerHeight':'layer height','spec.infillRange':'infill range','spec.postProcess':'post-process','spec.delivery':'delivery','spec.sandingAssembly':'Sanding / Assembly','spec.physDigital':'Physical + Digital',
+    'spec.microcontroller':'microcontroller','spec.protocols':'protocols','spec.sensors':'sensors','spec.sensorTypes':'Temp / Humidity / Motion','spec.firmware':'firmware','spec.enclosure':'enclosure','spec.cloud':'cloud','spec.scope':'scope','spec.webMobile':'Web / Mobile Dashboard','spec.custom3dp':'Custom 3D Printed',
+    'filter.3dprint':'3D Print','filter.brand':'Brand',
+    'about.stat1':'core disciplines','about.stat2':'+ print hours','about.stat3':'+ cad models','about.capsLabel':'[capabilities] ///',
+    'contact.email':'Email','contact.locationLabel':'[location] ///','contact.location':'Opole, Poland',
+    'prj.back':'<<< Back to portfolio',
+    'prj.nobile.client':'Client: Nobile Kiteboarding',
+    'prj.nobile.brief':'Custom kiteboard grab handle designed for Nobile Kiteboarding. Multiple design iterations with clip-based mounting system, 3D printed in PETG for real-world testing in Egypt and Poland. Final STEP files delivered for injection molding production.',
+    'prj.nobile.aboutLabel':'[about the project] ///',
+    'prj.nobile.about':'<p>Nobile Kiteboarding needed a custom grab handle for their kiteboard line. The existing off-the-shelf handles didn\'t match the board\'s geometry or brand aesthetic.</p><p>I designed a handle from scratch in Fusion 360 — parametric model with a clip-based mounting system that locks onto the board rail without permanent modification. The handle extension component connects via press-fit pins (ø6.1mm).</p><p>Multiple iterations were 3D printed in PETG and tested at kiteboarding sessions in Egypt and Hel (Poland). The design was validated under real conditions — salt water, UV exposure, high-impact loads during grabs.</p><p>Final deliverable: production-ready STEP files for injection molding tooling, plus technical drawing documentation (A3 format) with full GD&T dimensioning.</p>',
+    'prj.nobile.processLabel':'[process] ///',
+    'prj.nobile.step1t':'Brief & Geometry Analysis','prj.nobile.step1d':'Received board CAD files from Nobile. Analyzed rail profile, mounting constraints, and ergonomic requirements for grab handles.',
+    'prj.nobile.step2t':'Parametric CAD Design','prj.nobile.step2d':'Designed handle and extension components in Fusion 360 with full parametric control. Clip-based mounting system designed for tool-free installation.',
+    'prj.nobile.step3t':'Rapid Prototyping (FDM)','prj.nobile.step3d':'3D printed prototypes in PETG — multiple iterations refining ergonomics, clip tension, and structural integrity. V1 through V3 evolution.',
+    'prj.nobile.step4t':'Field Testing','prj.nobile.step4d':'Prototypes mounted on Nobile boards and tested at sessions in Egypt and Hel, Poland. Validated salt water resistance, UV stability, and impact performance.',
+    'prj.nobile.step5t':'Production Documentation','prj.nobile.step5d':'Delivered STEP files for injection mold tooling, A3 technical drawings with GD&T dimensioning, and manufacturing notes.',
+    'prj.nobile.drawingsLabel':'[technical drawings] ///',
+    'prj.nobile.specTool':'Primary Tool','prj.nobile.specMat':'Material (Prototype)','prj.nobile.specProd':'Production Target','prj.nobile.specDim':'Handle Dimensions','prj.nobile.specExt':'Extension Size','prj.nobile.specPin':'Pin Diameter','prj.nobile.specMount':'Mounting','prj.nobile.specOut':'Output','prj.nobile.specIter':'Iterations','prj.nobile.specTest':'Field Tested','prj.nobile.specYear':'Year',
+    'prj.backPortfolio':'Back to','prj.allProjects':'All Projects',
+  },
+  pl: {
+    'nav.home':'Start','nav.services':'Usługi','nav.portfolio':'Portfolio','nav.about':'O mnie','nav.contact':'Kontakt',
+    'hero.headline':'Inżynieria<br>Produktu<span class="h-accent">.</span>',
+    'hero.sub':'druk 3d \u00a0///\u00a0 cad \u00a0///\u00a0 produkty cyfrowe',
+    'hero.desc':'Jednoosobowa praktyka inżynierska — od modelu CAD do gotowego produktu. Szybkie prototypowanie, projekty gotowe do produkcji i integracja IoT — jedna osoba, pełen zakres, bez biurokracji.',
+    'hero.cta':'Rozpocznij projekt \u00a0>>>',
+    'home.featured':'Wybrane Projekty',
+    'cta.heading':'Masz projekt?',
+    'cta.sub':'Wyślij brief. Wycena w ciągu 48h. ///',
+    'cta.btn':'Skontaktuj się \u00a0>>>',
+    'services.heading':'Co Budujemy',
+    'portfolio.heading':'Wybrane Realizacje',
+    'portfolio.all':'Wszystkie',
+    'about.label':'[akta personalne] /// dostęp: publiczny',
+    'about.title':'Inżynier Produktu /// Założyciel',
+    'about.bio':'Magister inżynier Zarządzania i Inżynierii Produkcji (AGH Kraków). Studia podyplomowe z technologii druku 3D (Politechnika Warszawska). Wcześniej współzałożyciel i operator Kitely — szkoły kitesurfingu zbudowanej od zera do sprzedaży.<br><br>Teraz buduję instant-engineering — praktykę inżynierską skupioną na przekształcaniu pomysłów w fizyczną rzeczywistość. Modelowanie CAD, szybkie prototypowanie, integracja IoT. Siedziba w Opolu, klienci z całej Polski i Europy.',
+    'contact.heading':'Rozpocznij Projekt',
+    'contact.formTitle':'Wyślij Brief',
+    'contact.formSub':'Opisz swój projekt. Wycena w ciągu 48h. ///',
+    'contact.name':'Imię','contact.namePh':'Twoje imię',
+    'contact.type':'Typ Projektu',
+    'contact.opt1':'CAD i Projektowanie Produktu','contact.opt2':'Druk 3D i Prototypowanie','contact.opt3':'IoT i Hardware','contact.opt4':'Kilka / Nie jestem pewien',
+    'contact.brief':'Opis Projektu','contact.briefPh':'Opowiedz o swoim projekcie...',
+    'contact.send':'Wyślij Brief \u00a0>>>',
+    'contact.available':'Dostępny','contact.accepting':'przyjmuję projekty /// Q1 2026',
+    'nav.services.cad':'CAD i Projektowanie','nav.services.print':'Druk 3D','nav.services.iot':'IoT i Hardware',
+    'footer.tagline':'dział inżynierii produktu',
+    'footer.desc':'Jednoosobowa praktyka inżynierska. Modelowanie CAD, szybkie prototypowanie, wytwarzanie przyrostowe i integracja IoT. Od koncepcji do rzeczywistości — szybko, precyzyjnie, bez biurokracji.',
+    'footer.field':'DZIEDZINA','footer.fieldVal':'Inżynieria Produktu',
+    'footer.spec':'SPECJALIZACJA','footer.specVal':'Wytwarzanie Przyrostowe',
+    'footer.base':'BAZA','footer.coords':'WSPÓŁRZĘDNE',
+    'footer.status':'STATUS','footer.statusVal':'■ Aktywny — Przyjmuję Projekty',
+    'footer.navTitle':'[nawigacja] ///',
+    'footer.rights':'wszelkie prawa zastrzeżone',
+    'footer.servicesTitle':'[usługi] ///','footer.contactTitle':'[kontakt] ///','footer.locationShort':'Opole, Polska',
+    'footer.ascii':'╔══════════════════════╗\n║  INŻYNIERIA PRODUKTU║\n║  DZIAŁ /// INSTANT   ║\n║  ◈ CAD   ▣ 3DP      ║\n║  ◉ IoT   ► PROTO    ║\n╚══════════════════════╝',
+    'svc.cad.title':'CAD i Projektowanie Produktu','svc.print.title':'Druk 3D i Prototypowanie','svc.iot.title':'IoT i Hardware','svc.iot.titleFull':'IoT i Konsulting Sprzętowy',
+    'svc.cad.desc':'Kompleksowe projektowanie produktu — od koncepcji po modele 3D gotowe do produkcji. Projektowanie parametryczne, złożenia, dokumentacja techniczna.',
+    'svc.print.desc':'Szybkie prototypowanie i produkcja małoseryjna. Druk FDM z materiałów inżynierskich. Od pojedynczych prototypów po przyrządy produkcyjne.',
+    'svc.iot.desc':'Rozwój produktów połączonych. Prototypowanie ESP32, integracja czujników, firmware, panele danych łączące świat fizyczny i cyfrowy.',
+    'svc.cad.body':'Kompleksowe projektowanie produktu — od wstępnych szkiców koncepcyjnych po modele 3D gotowe do produkcji. Projektowanie parametryczne z pełną dokumentacją złożeń, rysunkami technicznymi z tolerancjami GD&T i eksportem do dowolnego formatu produkcyjnego.<br><br>Specjalizacja w projektowaniu produktów konsumenckich, obudów przemysłowych, złożeń mechanicznych i niestandardowych uchwytów. Każdy model projektowany z myślą o wytwarzalności od pierwszego dnia.',
+    'svc.print.body':'Szybkie prototypowanie i produkcja małoseryjna z wykorzystaniem technologii FDM z materiałów inżynierskich. Od prototypów walidacyjnych po przyrządy produkcyjne, uchwyty i części końcowe.<br><br>Iteracyjny proces — druk, test, pomiar, korekta. Prototypy fizyczne wysyłane lub dostarczane bezpośrednio. Optymalizacja plików do druku w cenie.',
+    'svc.iot.body':'Rozwój produktów połączonych łączących świat fizyczny i cyfrowy. Prototypowanie systemów ESP32/czujnikowych, firmware, integracja hardware-software i panele danych.<br><br>Od proof-of-concept po urządzenia IoT gotowe do produkcji. Pełen stos — od doboru układów przez projekt obudowy po panel w chmurze.',
+    'svc.details':'szczegóły >>>','svc.quote':'Zapytaj o wycenę >>>','svc.specsLabel':'[specyfikacja] ///',
+    'spec.platform':'platforma','spec.output':'wyjście','spec.tolerance':'tolerancja','spec.method':'metoda','spec.materials':'materiały','spec.turnaround':'czas realizacji','spec.protocol':'protokół','spec.interface':'interfejs',
+    'spec.primaryTool':'narzędzie główne','spec.secondary':'drugorzędne','spec.parametric':'parametryczne','spec.outputFormats':'formaty wyjściowe','spec.meshExport':'eksport siatki','spec.documentation':'dokumentacja','spec.complexity':'złożoność','spec.dwgGdt':'rysunki 2D z GD&T',
+    'spec.technology':'technologia','spec.buildVolume':'objętość robocza','spec.layerHeight':'wysokość warstwy','spec.infillRange':'zakres wypełnienia','spec.postProcess':'obróbka końcowa','spec.delivery':'dostawa','spec.sandingAssembly':'Szlifowanie / Montaż','spec.physDigital':'Fizyczna + Cyfrowa',
+    'spec.microcontroller':'mikrokontroler','spec.protocols':'protokoły','spec.sensors':'czujniki','spec.sensorTypes':'Temp. / Wilg. / Ruch','spec.firmware':'firmware','spec.enclosure':'obudowa','spec.cloud':'chmura','spec.scope':'zakres','spec.webMobile':'Panel Web / Mobile','spec.custom3dp':'Druk 3D na zamówienie',
+    'filter.3dprint':'Druk 3D','filter.brand':'Marka',
+    'about.stat1':'dyscypliny','about.stat2':'+ godzin druku','about.stat3':'+ modeli CAD','about.capsLabel':'[umiejętności] ///',
+    'contact.email':'Email','contact.locationLabel':'[lokalizacja] ///','contact.location':'Opole, Polska',
+    'prj.back':'<<< Powrót do portfolio',
+    'prj.nobile.client':'Klient: Nobile Kiteboarding',
+    'prj.nobile.brief':'Uchwyt do kiteboard zaprojektowany na zamówienie dla Nobile Kiteboarding. Wiele iteracji z systemem montażu na klipsy, druk 3D w PETG do testów w Egipcie i Polsce. Dostarczone pliki STEP do produkcji wtryskowej.',
+    'prj.nobile.aboutLabel':'[o projekcie] ///',
+    'prj.nobile.about':'<p>Nobile Kiteboarding potrzebował niestandardowego uchwytu do swojej linii kiteboard. Dostępne uchwyty nie pasowały do geometrii deski ani estetyki marki.</p><p>Zaprojektowałem uchwyt od zera w Fusion 360 — model parametryczny z klipsowym systemem montażu, który blokuje się na szynie deski bez trwałej modyfikacji. Element przedłużający łączy się za pomocą sworzni wciskanych (ø6.1mm).</p><p>Wiele iteracji wydrukowano w PETG i przetestowano podczas sesji kitesurfingowych w Egipcie i na Helu. Projekt zweryfikowano w realnych warunkach — woda morska, UV, obciążenia udarowe.</p><p>Produkt końcowy: pliki STEP gotowe do form wtryskowych oraz dokumentacja techniczna (format A3) z pełnym wymiarowaniem GD&T.</p>',
+    'prj.nobile.processLabel':'[proces] ///',
+    'prj.nobile.step1t':'Brief i analiza geometrii','prj.nobile.step1d':'Otrzymanie plików CAD deski od Nobile. Analiza profilu szyny, ograniczeń montażowych i wymagań ergonomicznych.',
+    'prj.nobile.step2t':'Parametryczny projekt CAD','prj.nobile.step2d':'Projektowanie uchwytu i komponentów w Fusion 360 z pełną kontrolą parametryczną. Klipsowy system montażu bez narzędzi.',
+    'prj.nobile.step3t':'Szybkie prototypowanie (FDM)','prj.nobile.step3d':'Druk 3D prototypów w PETG — wiele iteracji dopracowujących ergonomię, napięcie klipsa i wytrzymałość. Ewolucja V1 → V2 → V3.',
+    'prj.nobile.step4t':'Testy terenowe','prj.nobile.step4d':'Prototypy zamontowane na deskach Nobile i testowane w Egipcie i na Helu. Weryfikacja odporności na wodę morską, UV i obciążenia udarowe.',
+    'prj.nobile.step5t':'Dokumentacja produkcyjna','prj.nobile.step5d':'Dostarczone pliki STEP do form wtryskowych, rysunki techniczne A3 z wymiarowaniem GD&T oraz notatki produkcyjne.',
+    'prj.nobile.drawingsLabel':'[rysunki techniczne] ///',
+    'prj.nobile.specTool':'Narzędzie','prj.nobile.specMat':'Materiał (prototyp)','prj.nobile.specProd':'Cel produkcyjny','prj.nobile.specDim':'Wymiary uchwytu','prj.nobile.specExt':'Rozmiar przedłużki','prj.nobile.specPin':'Średnica sworznia','prj.nobile.specMount':'Montaż','prj.nobile.specOut':'Format wyjściowy','prj.nobile.specIter':'Iteracje','prj.nobile.specTest':'Testy terenowe','prj.nobile.specYear':'Rok',
+    'prj.backPortfolio':'Powrót do','prj.allProjects':'Wszystkie Projekty',
+  }
+};
+
+let currentLang = 'en';
+
+function setLang(lang) {
+  currentLang = lang;
+  const t = i18n[lang];
+  // Text content
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key]) el.textContent = t[key];
+  });
+  // HTML content (for <br> tags etc)
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.dataset.i18nHtml;
+    if (t[key]) el.innerHTML = t[key];
+  });
+  // Placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if (t[key]) el.placeholder = t[key];
+  });
+  // Update lang buttons
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  // Update HTML lang attribute
+  document.documentElement.lang = lang;
+}
+
+// Bind all lang buttons (header + footer)
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => setLang(btn.dataset.lang));
+});
+
+// ═══════════════════════════════════════════════
+// PROJECT DATA & RENDERING
+// ═══════════════════════════════════════════════
+const projects = [
+  { id:'PRJ-001', name:'Nobile Kitehandle V3', cat:'cad', tags:['CAD','3D Print'], year:2025, detail:'project-nobile', thumb:'projects/nobile/IMG_4751.jpg', wf:[{x:10,y:20,w:60,r:0},{x:15,y:30,w:50,r:5},{x:20,y:40,w:55,r:-3},{x:12,y:55,w:45,r:0},{x:25,y:65,w:40,r:8},{x:30,y:35,w:20,r:45}] },
+  { id:'PRJ-002', name:'Environmental Monitor', cat:'iot', tags:['ESP32','Enclosure'], year:2025, wf:[{x:20,y:25,w:40,r:0},{x:20,y:25,w:40,r:90},{x:30,y:35,w:30,r:45},{x:15,y:50,w:60,r:0},{x:25,y:60,w:45,r:-10}] },
+  { id:'PRJ-003', name:'Reef Module Assembly', cat:'3dprint', tags:['Parametric','3D Print'], year:2024, wf:[{x:15,y:30,w:55,r:15},{x:25,y:20,w:45,r:-15},{x:20,y:45,w:50,r:0},{x:35,y:25,w:30,r:60},{x:10,y:55,w:65,r:5}] },
+  { id:'PRJ-004', name:'Custom Fixture Set', cat:'cad', tags:['DFM','PETG'], year:2025, wf:[{x:10,y:20,w:70,r:0},{x:10,y:40,w:70,r:0},{x:10,y:60,w:70,r:0},{x:10,y:20,w:50,r:90},{x:45,y:20,w:50,r:90}] },
+  { id:'PRJ-005', name:'Dzwiekula Servo Mount', cat:'3dprint', tags:['3D Print','Mechanical'], year:2024, wf:[{x:20,y:25,w:50,r:10},{x:15,y:45,w:60,r:-5},{x:30,y:35,w:25,r:65},{x:40,y:55,w:35,r:0},{x:10,y:65,w:45,r:3}] },
+  { id:'PRJ-006', name:'IKO 3D Logo', cat:'brand', tags:['CAD','3D Print'], year:2023, wf:[{x:25,y:20,w:40,r:0},{x:20,y:35,w:50,r:-10},{x:30,y:50,w:30,r:20},{x:15,y:60,w:55,r:0}] },
+];
+
+function renderProjects(container, items) {
+  container.innerHTML = '';
+  items.forEach((p,i) => {
+    const card = document.createElement('div');
+    card.className = 'project-card reveal';
+    card.style.transitionDelay = (i*0.1)+'s';
+    card.dataset.cat = p.cat;
+    if (p.detail) card.dataset.detail = p.detail;
+    const bg = p.thumb ? `<img src="${p.thumb}" alt="${p.name}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;transition:opacity 0.4s;">` : `<div class="project-wireframe"><div class="wireframe-lines">${p.wf.map(l=>`<div class="wf-line" style="top:${l.y}%;left:${l.x}%;width:${l.w}%;transform:rotate(${l.r||0}deg)"></div>`).join('')}</div></div>`;
+    card.innerHTML = `${bg}<div class="project-info"><div class="project-id">${p.id} /// ${p.tags.join(' / ')}</div><div class="project-name">${p.name}</div><div class="project-meta"><span>${p.cat.toUpperCase()}</span><span>${p.year}</span></div></div>`;
+    if (p.detail) {
+      card.style.cursor = 'none';
+      card.addEventListener('click', () => { navigate(p.detail); history.pushState(null,'','#'+p.detail); });
+      card.addEventListener('mouseenter', () => { const img = card.querySelector('img'); if(img) img.style.opacity='0.55'; });
+      card.addEventListener('mouseleave', () => { const img = card.querySelector('img'); if(img) img.style.opacity='0.35'; });
+    }
+    container.appendChild(card);
+    observer.observe(card);
+  });
+}
+
+// Home featured (first 4)
+renderProjects(document.getElementById('homeProjects'), projects.slice(0,4));
+// Portfolio page (all)
+renderProjects(document.getElementById('portfolioGrid'), projects);
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    const filtered = f==='all' ? projects : projects.filter(p=>p.cat===f);
+    renderProjects(document.getElementById('portfolioGrid'), filtered);
+  });
+});
+</script>
+</body>
+</html>
